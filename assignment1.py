@@ -53,7 +53,7 @@ def STT_continuous(session):
             word_array = audio_processor.give_me_words()
             print("I am processing the words")
             print(word_array[-3:])
-        aud
+        audio_processor.loop()
 wamp = Component(
     transports=[{
         "url": "ws://wamp.robotsindeklas.nl",
