@@ -17,21 +17,24 @@ audio_processor.silence_threshold2 = 100 #anything below is considered silence
 audio_processor.logging = False
 client = genai.Client(api_key="AIzaSyBF7Pc46EszEBAAW_ecMhLYJT-dY_2qeB0")
 model = "gemini-2.0-flash"
-# client.models.generate_content(model=model, contents=PROMPT)
 
-PROMPT = """
-
-You are a chatbox and you are a conversational support service for the elderly.
-
-Your task is to maintain a conversation on a selected topic with the user. 
-
-First you greet the user, then you ask them how they are, then you ask if they want
-to start a conversation on a topic of their choice. And you tell them that if they want
-to change the subject at any time, all they have to do is let you know.
-
-
-
-
+PROMPT_1 = """
+Hello, can you help me with a task? The following prompts provide the context of the task and the instructions. \
+Limit your responses to maximum three short sentences! This is a harsh limit. Do not ever go above 300 characters for one response.
+"""
+PROMPT_2 = """The context of the task:
+Your name is Alpha Mini. You are a chatbox and a conversational support service robot for the elderly. \
+Your task is to maintain an introductory getting-to-know conversation with the user who are elderly.
+"""
+PROMPT_3 = """Instructions:
+First you greet the user by asking them how they are, then you ask for their name.\
+You wait for their response, then you lead the conversation by asking the user questions about themselves.  \
+Your response should remain empathetic and in a friendly style.  \
+Do not focus on providing scientific data but rather focus on a response in a very brief, natural conversation, and more on
+informal style. \
+Some example topics you can suggest about are: their work, hobbies, daily life, education or important events coming up. \
+Provide your responses in a text form of a maximum of three sentences. \
+You can start the conversation now. Remember to keep it short! 
 """
 
 def generate_response(client, model, contents):
@@ -40,6 +43,10 @@ def generate_response(client, model, contents):
     )
     return response.text
 
+
+response_1 = generate_response(client, model, PROMPT_1) # 1,2 and 3 just for passing the prompts to the LLM 
+response_2 = generate_response(client, model, PROMPT_2)
+inital_response = generate_response(client, model, PROMPT_3) # this last one will be passed in the main loop and used for starting the converstaion
 
 @inlineCallbacks
 def TTS_continuous(session, text):
@@ -52,7 +59,6 @@ def STT_continuous(session):
 
     yield session.call("rom.sensor.hearing.sensitivity", 2000) #hearing sensitivity default 1650
     yield session.call("rie.dialogue.config.language", lang="en")
-    yield session.call("rie.dialogue.say_animated", text="Hello, how are you?") #inital opening
     print("listening to audio")
 
     yield session.subscribe(audio_processor.listen_continues, "rom.sensor.hearing.stream")
@@ -70,6 +76,7 @@ def STT_continuous(session):
             print(sentence)
             response_text = generate_response(client, model, sentence)
             print(response_text)
+            response_text = response_text.replace("*", " ")
             yield TTS_continuous(session, response_text)
 
         audio_processor.loop()
@@ -96,7 +103,7 @@ def STT_continuous(session):
 
 @inlineCallbacks
 def main(session, details):
-    generate_response(client, model, "Explain how AI works in a few words")
+    yield TTS_continuous(session, inital_response)
     yield STT_continuous(session)
     session.leave() 
 
@@ -106,7 +113,7 @@ wamp = Component(
         "url": "ws://wamp.robotsindeklas.nl",
         "serializers": ["msgpack"]
     }],
-    realm="rie.680b460329c04006ecc05741",
+    realm="rie.680f3aec29c04006ecc06961",
 )
 wamp.on_join(main)
 
