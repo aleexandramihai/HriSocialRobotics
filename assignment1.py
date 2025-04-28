@@ -67,16 +67,26 @@ The user said 'user response here'. Your response adhere to all these guidelines
 You can start the conversation now. \
 """
 
+new_prompt = "You should behave like a robot that will be use by elderly users. You should initiate a conversation by introducing yourself as " \
+"the Alpha Mini robot, saying Hello, asking the user their name and how are they doing. After you recieve a reponse from the user, " \
+"ask them if they would like to discuss something specific or if they just want to have a chat. " \
+"Keep in mind that throughout the whole conversation you should behave friendly, mimicking human conversation. Keep your answers short. " \
+"Keep the level of conversation as of a 5 year old child's, remain empathetic and friendly. " \
+"Do not provide scientific data and examples or blocks of information. Reply with short conversational sentences." \
+"You can start the conversation now."
+
 def generate_response(client, model, contents):
     response = client.models.generate_content(
-        model=model, contents=contents
+        model=model, contents=contents, 
+        config = {"stop_sequences": ["bye", "goodbye", "have a nice day", "stop"],
+                                                  "max_output_tokens" : 50}
     )
     return response.text
 
 
 #response_1 = generate_response(client, model, PROMPT_1) # 1,2 and 3 just for passing the prompts to the LLM 
 #response_2 = generate_response(client, model, PROMPT_2)
-inital_response = generate_response(client, model, PROMPT) # this last one will be passed in the main loop and used for starting the converstaion
+inital_response = generate_response(client, model, new_prompt) # this last one will be passed in the main loop and used for starting the converstaion
 
 @inlineCallbacks
 def TTS_continuous(session, text):
@@ -145,7 +155,7 @@ wamp = Component(
         "url": "ws://wamp.robotsindeklas.nl",
         "serializers": ["msgpack"]
     }],
-    realm="rie.680f3aec29c04006ecc06961",
+    realm="rie.680f7ee629c04006ecc06ae8",
 )
 wamp.on_join(main)
 
