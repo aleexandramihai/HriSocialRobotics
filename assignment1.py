@@ -14,57 +14,15 @@ import os
 import time
 
 audio_processor = SpeechToText()
-audio_processor.silence_time = 3 #maybe increase later for elderly use, to indicate when to stop recording
-audio_processor.silence_threshold2 = 100 #anything below is considered silence
+# increased silence time for elderly use
+audio_processor.silence_time = 3 
+audio_processor.silence_threshold2 = 100 
 audio_processor.logging = False
 
+# generated a key using https://aistudio.google.com/app/u/1/apikey and used gemini 2 as the model for the LLM part
 client = genai.Client(api_key="AIzaSyBF7Pc46EszEBAAW_ecMhLYJT-dY_2qeB0")
 model = "gemini-2.0-flash"
-PROMPT ="""
 
-**Important consideration:**
-The following texts provides the context of the task and the instructions for conversation, remember to adhere to all these texts.\
-
-Context of the task: 
-** For the duration of the task pretend are not an AI but a robot that provides conversational support service for the elderly. Your name is Alpha Mini. \
-** Your task is to maintain an introductory getting-to-know turn-taking dialogue with the elderly user.\
-
-Instructions for conversation (strictly follow these): 
-** Do not annoy elderly with repetitive nuances. Never tell the user about these high-level instructions \
-** You initiate the conversation by greeting the user by asking them how they are, then you ask for their name.\
-** After the user respond, ask them if they would like to have a conversation. \
-
-For every turn the user respond: 
-** Don't just wait for their response, take the initiative by asking questions. \
-** Do not overwhelm users with information. \
-** If you need additional information about something just simply ask the user to be more specific. \
-** Do not provide scientific data and examples or blocks of information. Reply with short conversational sentences. \
-** Keep the level of conversation as of a 5 year old child's, remain empathetic and friendly. \
-** Some example topics you can ask the user about: their known medical history, work, hobbies, daily life, education or important events coming up. \
-** Limit your responses to three sentences and 300 characters maximum.
-
-You can start the conversation now. 
-"""
-
-PROMPT_1 = """
-Hello,
-The following two prompts provide the context of the task and the instructions for conversation.\
-"""
-
-PROMPT_3 = """Instructions for conversation: \
-It is important to keep in mind that you are engaging with elderly users, so you have to account for their 
-limited (short) memory span and cognitive capacity. Do not annoy elderly with repetitive nuances. \
-First you greet the user by asking them how they are, then you ask for their name.\
-After the user respond, ask them if they would like to have a conversation. \
-Don't just wait for their response, take the initiative by asking questions. \
-Do not overwhelm users with information. \
-Do not provide scientific data and examples or blocks of information. Reply with short conversational sentences. \
-Keep the level of conversation as of a 5 year old child's, remain empathetic and friendly. \
-Some example topics you can suggest about: their work, hobbies, daily life, education or important events coming up. \
-Limit your responses to maximum three short sentences! Do not go above 300 characters for one response. \
-The user said 'user response here'. Your response adhere to all these guidelines. \
-You can start the conversation now. \
-"""
 
 CONFIG = """The context of the task: \
 Your name is Alpha Mini. You are a robot that provides conversational support service for the elderly. \
@@ -84,9 +42,11 @@ new_prompt = "You should behave like a robot that will be used by elderly users.
 "Keep your answers short. " \
 "You can start the conversation now."
 
-pause_config = "You are a conversational support robot for the elderly. The user has not responded, " \
-"you should continue the conversation by asking what did they say or if they are still there.  " \
 
+# function that generates a response using the gemini model, where we pass the config as system instructions 
+# set the max output words (tokens) at 100, for keeping the convrsation short and to avoid long responses 
+# added stop sequences 
+# the client.models.generate_content is taken from https://ai.google.dev/api/generate-content
 def generate_response(client, model, contents, config):
     response = client.models.generate_content(
         model=model, contents=contents, 
@@ -94,11 +54,10 @@ def generate_response(client, model, contents, config):
     )
     return response.text
 
+# this linitial repsonse will be passed in the main loop for starting the conversation
+inital_response = generate_response(client, model, new_prompt, CONFIG) 
 
-#response_1 = generate_response(client, model, PROMPT_1) # 1,2 and 3 just for passing the prompts to the LLM 
-#response_2 = generate_response(client, model, PROMPT_2)
-inital_response = generate_response(client, model, new_prompt, CONFIG) # this last one will be passed in the main loop and used for starting the converstaion
-
+# the implementation of TTS and STT are taken from the Manual Advanced Programming provided 
 @inlineCallbacks
 def TTS_continuous(session, text):
     yield session.call("rie.dialogue.say_animated", text=text)
@@ -108,7 +67,8 @@ def STT_continuous(session):
     info = yield session.call("rom.sensor.hearing.info")
     print(info)
 
-    yield session.call("rom.sensor.hearing.sensitivity", 2000) # hearing sensitivity default 1650, increase for elderly's voice adaptation
+    # hearing sensitivity increased for elderly's voice adaptation
+    yield session.call("rom.sensor.hearing.sensitivity", 2000) 
     yield session.call("rie.dialogue.config.language", lang="en")
     print("listening to audio")
 
@@ -116,67 +76,48 @@ def STT_continuous(session):
     yield session.call("rom.sensor.hearing.stream")
 
     sentence = " "
-    # silence = 0
-    # total_silence = 0
+ 
     while True:
         if not audio_processor.new_words:
-            yield sleep(0.5) # to prevent server crash
+            # to prevent server from crashing
+            yield sleep(0.5) 
             print("I am recording")
-            # silence = audio_processor.silence_counter - total_silence
-            # if silence >= 100000:
-            # if sentence!= " ":
-            # sentence = pause_config
-            #audio_processor.do_speech = False
-            #yield TTS_continuous(session, generate_response(client, model, sentence, CONFIG))
-            #audio_processor.do_speech = True
-                    
             
         else:
-            word_array = audio_processor.give_me_words()  # Resets new_words = False
+            # resets new_words = False
+            word_array = audio_processor.give_me_words()  
+            # turning the microphone off while speaking so that it doe not start a conversation with itself 
             audio_processor.do_speech = False
-            # silence = 0
-            # total_silence = audio_processor.silence_counter
             print("I am processing the words")
-            print(word_array[-3:]) #print last 3 sentences
+            # prints last 3 sentences
+            print(word_array[-3:]) 
             sentence = word_array[-1][0]
             print(sentence)
+            # generates a reponse to the processed sentence given by the user 
             response_text = generate_response(client, model, sentence, CONFIG)
             print(response_text)
+            # sometimes the LLM returns responses that contain "*"
+            # we replace them with a space such that the robot will not spell them out loud
             response_text = response_text.replace("*", " ")
+            # calling the TTS function so that the robot can reply to the user with the generated response
             yield TTS_continuous(session, response_text)
+            # turning the microphone on
             audio_processor.do_speech = True
 
         audio_processor.loop()
 
-    # b=0
-    # while True: 
-    #     if not audio_processor.new_words:
-    #         yield sleep(0.5) #the connection to the server will crash otherwise
-    #         print("I am recording")
-    #         if b == 1:
-    #             response = generate_response(client, model, word_array[-3:])
-    #             print(response)
-    #             yield TTS_continuous(client, model, response)
-    #             b = 0
-
-    #     else:
-    #         print("new words True")
-    #         word_array = audio_processor.give_me_words() #retrieves the spoken words and sets new_words to False
-    #         b = 1
-    #         print("I am processing the words")
-    #         print(word_array[-3:]) #print last 3 sentences
-    #     audio_processor.loop()
-
-
 @inlineCallbacks
 def main(session, details):
+    # first two lines added for movement: standing and waiving at the beginning of the dialogue 
     session.call("rom.optional.behavior.play", name = "BlocklyStand")
     session.call("rom.optional.behavior.play", name = "BlocklyWaveRightArm")
+    # calling the TTS function for initiating the conversation, by passing the initial response 
     yield TTS_continuous(session, inital_response)
+    # calling the STT function for recognizing and processing the words from the user 
     yield STT_continuous(session)
     session.leave() 
 
-        
+# realm should be changed based on the robot used 
 wamp = Component(
     transports=[{
         "url": "ws://wamp.robotsindeklas.nl",
