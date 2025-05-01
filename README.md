@@ -10,7 +10,7 @@ For creating the API key, we used information from this website https://aistudio
 
 The creation of the CONFIG and the new_prompt prompts was inspired from Esteban-Lozano et al. (2024). 
 
-We then define a generate_response function (that we took from https://ai.google.dev/api/generate-content), where we generate the content by passing the CONGIF prompt as the system instructions. This way, the LLM considers this prompt each time it generates a new response. Moreover, we set the max_output_token to 100, meaning that the maximum number of words a generated response should have would be 100, suhc that the conversation is kept short and we also added some stop_sentences, namely "bye", "goodbye", "have a nice day" and "stop". 
+We then define a generate_response function (that we took from https://ai.google.dev/api/generate-content), where we generate the content by passing the CONFIG prompt as the system instructions. This way, the LLM considers this prompt each time it generates a new response. Moreover, we set the max_output_token to 100, meaning that the maximum number of words a generated response should have would be 100, suhc that the conversation is kept short and we also added some stop_sentences, namely "bye", "goodbye", "have a nice day" and "stop". 
 
 We then create an initial response, by passing the new_prompt as the contents and the CONFIG. This will be later used in the main loop for initiating the conversation. 
 
