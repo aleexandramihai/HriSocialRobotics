@@ -62,7 +62,7 @@ inital_response = generate_response(client, model, new_prompt, CONFIG)
 @inlineCallbacks
 def TTS_continuous(session, text):
     # used say_animated so that the robot also performs movement while speaking 
-    yield session.call("rie.dialogue.say_animated", text=text)
+    yield session.call("rie.dialogue.say", text=text)
                   
 @inlineCallbacks
 def STT_continuous(session):
@@ -78,7 +78,6 @@ def STT_continuous(session):
     yield session.call("rom.sensor.hearing.stream")
 
     sentence = " "
-    label_scores = {}
  
     while True:
         if not audio_processor.new_words:
@@ -103,6 +102,7 @@ def STT_continuous(session):
             # print(label_scores)
             label, score = sentiment_analysis(sentence)
             print(label, score)
+            perform_movement_sentiment(session, label, score)
             # generates a reponse to the processed sentence given by the user 
             response_text = generate_response(client, model, sentence, CONFIG)
             print(response_text)
@@ -123,7 +123,136 @@ def sentiment_analysis(sentence):
     score = sentiment[0]['score']
     return label, score 
 
-# def perform_movement(a, b):
+
+# needs to be changed 
+def begin_end():
+    frame = [{"time": 3000, "data": {
+            "body.head.pitch": 0.0,
+            "body.legs.right.lower.pitch": 0,
+            "body.legs.left.lower.pitch": 0,
+            "body.legs.right.upper.pitch": 0,
+            "body.legs.left.upper.pitch": 0,
+			"body.legs.right.foot.roll": 0,
+			"body.legs.left.foot.roll": 0,
+			"body.arms.right.upper.pitch": 0.0,
+            "body.arms.left.upper.pitch": 0.0
+        }},
+    ]
+    return frame
+
+# needs to be changed 
+def frames_hard():
+	frames = [
+		{"time": 1000, "data": {
+            "body.head.pitch": 0.0,
+            "body.legs.right.lower.pitch": 0,
+            "body.legs.left.lower.pitch": 0,
+            "body.legs.right.upper.pitch": 0,
+            "body.legs.left.upper.pitch": 0,
+			"body.legs.right.foot.roll": 0.2,
+			"body.legs.left.foot.roll": 0.2,
+			"body.arms.right.upper.pitch": 0.0,
+            "body.arms.left.upper.pitch": 0.0
+        }},
+		{"time": 2000, "data": {
+            "body.head.pitch": 0.0,
+            "body.legs.right.lower.pitch": -0.5,
+            "body.legs.left.lower.pitch": 0.5,
+            "body.legs.right.upper.pitch": 0.5,
+            "body.legs.left.upper.pitch": -0.5,
+			"body.legs.right.foot.roll": 0.2,
+			"body.legs.left.foot.roll": 0.2,
+			"body.arms.right.upper.pitch": -0.8,
+            "body.arms.left.upper.pitch": 0.4
+        }},
+		{"time": 3000, "data": {
+            "body.head.pitch": 0.0,
+            "body.legs.right.lower.pitch": -0.5,
+            "body.legs.left.lower.pitch": 0.5,
+            "body.legs.right.upper.pitch": 0.5,
+            "body.legs.left.upper.pitch": -0.5,
+			"body.legs.right.foot.roll": -0.1,
+			"body.legs.left.foot.roll": -0.1,
+			"body.arms.right.upper.pitch": -1.5,
+            "body.arms.left.upper.pitch": 0.8
+        }},
+        {"time": 4000, "data": {
+            "body.head.pitch": 0.0,
+            "body.legs.right.lower.pitch": -0.2,
+            "body.legs.left.lower.pitch": 0,
+            "body.legs.right.upper.pitch": 0,
+            "body.legs.left.upper.pitch": -0.2,
+			"body.legs.right.foot.roll": -0.2,
+			"body.legs.left.foot.roll": -0.2,
+			"body.arms.right.upper.pitch": 0.0,
+            "body.arms.left.upper.pitch": 0.0
+        }},
+		# other way
+		{"time": 5000, "data": {
+            "body.head.pitch": 0.0,
+            "body.legs.right.lower.pitch": 0.5,
+            "body.legs.left.lower.pitch": -0.5,
+            "body.legs.right.upper.pitch": -0.5,
+            "body.legs.left.upper.pitch": 0.5,
+			"body.legs.right.foot.roll": -0.2,
+			"body.legs.left.foot.roll": -0.2,
+			"body.arms.right.upper.pitch": 0.4,
+            "body.arms.left.upper.pitch": -0.8
+        }},
+		{"time": 6000, "data": {
+            "body.head.pitch": 0.0,
+            "body.legs.right.lower.pitch": 0.5,
+            "body.legs.left.lower.pitch": -0.5,
+            "body.legs.right.upper.pitch": -0.5,
+            "body.legs.left.upper.pitch": 0.5,
+			"body.legs.right.foot.roll": 0.1,
+			"body.legs.left.foot.roll": 0.1,
+			"body.arms.right.upper.pitch": 0.8,
+            "body.arms.left.upper.pitch": -1.5
+        }},
+		{"time": 7000, "data": {
+            "body.head.pitch": 0.0,
+            "body.legs.right.lower.pitch": 0,
+            "body.legs.left.lower.pitch": -0.2,
+            "body.legs.right.upper.pitch": -0.2,
+            "body.legs.left.upper.pitch": 0,
+			"body.legs.right.foot.roll": 0.2,
+			"body.legs.left.foot.roll": 0.2,
+			"body.arms.right.upper.pitch": 0.0,
+            "body.arms.left.upper.pitch": 0.0
+        }},
+		]
+	return frames
+
+def walking(session, steps):
+    while steps !=0:
+        yield perform_movement(session, frames = [{"time": 2000, "data": {
+            "body.head.pitch": 0.0,
+            "body.legs.right.lower.pitch": -0.5,
+            "body.legs.left.lower.pitch": 0.5,
+            "body.legs.right.upper.pitch": 0.5,
+            "body.legs.left.upper.pitch": -0.5,
+			"body.legs.right.foot.roll": 0.2,
+			"body.legs.left.foot.roll": 0.2,
+			"body.arms.right.upper.pitch": -0.8,
+            "body.arms.left.upper.pitch": 0.4
+        }}], 
+                                force = False)
+        steps = steps-1
+
+def perform_movement_sentiment(session, label, score):
+    if label == "NEU":
+        print("a")
+    elif label == "POS":
+        # yes node
+        perform_movement(session, 
+                         frames = [{"time": 800, "data":{"body.head.pitch":0.174}},
+                                   {"time": 1600, "data":{"body.head.pitch": -0.174}},
+                                   {"time": 2400, "data":{"body.head.pitch":0.174}},
+                                   {"time": 2800, "data":{"body.head.pitch":0.0}}],
+                            force = True)
+    elif label == "NEG":
+        print("c")
     
 #     return 
 
@@ -131,10 +260,22 @@ def sentiment_analysis(sentence):
     
 @inlineCallbacks
 def main(session, details):
-    # first two lines added for movement: standing and waiving at the beginning of the dialogue 
-    session.call("rom.optional.behavior.play", name = "BlocklyStand")
-    session.call("rom.optional.behavior.play", name = "BlocklyWaveRightArm")
+    # first three lines added for movement: standing and waiving at the beginning of the dialogue
+    # second line: finding the face and tracking it (line4) 
+    yield session.call("rom.optional.behavior.play", name = "BlocklyStand")
+    # use this twice, we no longer need the walking part 
+    # yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward")
+    # yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward")
+    # yield session.call("rie.vision.face.find")
+    # sitting down for therapy 
+    # yield session.call("rom.optional.behavior.play", name = "BlocklySitDown") 
+    # needs to be changed walking 
+    # yield perform_movement(session, begin_end())
+    # yield perform_movement(session, frames_hard())
+    # yield perform_movement(session, begin_end())
+    # yield session.call("rom.optional.behavior.play", name = "BlocklyWaveRightArm")
     # calling the TTS function for initiating the conversation, by passing the initial response 
+    # session.call("rie.vision.face.track")
     yield TTS_continuous(session, inital_response)
     # calling the STT function for recognizing and processing the words from the user 
     yield STT_continuous(session)
@@ -146,7 +287,7 @@ wamp = Component(
         "url": "ws://wamp.robotsindeklas.nl",
         "serializers": ["msgpack"]
     }],
-    realm="rie.682716f61f2d588ceb278723",
+    realm="rie.68304f261f2d588ceb27b135",
 )
 wamp.on_join(main)
 
