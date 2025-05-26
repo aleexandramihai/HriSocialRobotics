@@ -147,6 +147,12 @@ def perform_movement_sentiment(session, label, score):
                                    {"time": 2400, "data":{"body.arms.right.upper.pitch":0.0, "body.arms.left.upper.pitch":0.0}},
                                    ],
                             force = True)
+         # backward chest bent -> this needs to be changed and customised for backward 
+         perform_movement(session, 
+                         frames = [{"time": 800, "data":{"body.legs.right.lower.pitch":0.0}},
+                                   {"time": 1600, "data":{"body.legs.right.lower.pitch":1.5}},
+                                   {"time": 8000, "data":{"body.legs.right.lower.pitch":0.0}}],
+                            force = True)
        
     elif label == "NEG":
         # no node/tilting the head down
@@ -163,6 +169,8 @@ def perform_movement_sentiment(session, label, score):
                                    {"time": 2400, "data":{"body.arms.right.lower.roll": 6.50e-04, "body.arms.left.lower.roll": 6.50e-04 }},
                                    ],
                             force = True)
+        
+        # foward chest bent  -> this needs to be changed 
         perform_movement(session, 
                          frames = [{"time": 800, "data":{"body.legs.right.lower.pitch":0.0}},
                                    {"time": 1600, "data":{"body.legs.right.lower.pitch":1.5}},
