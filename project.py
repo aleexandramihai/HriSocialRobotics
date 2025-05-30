@@ -64,10 +64,10 @@ inital_response = generate_response(client, model, new_prompt, CONFIG)
 @inlineCallbacks
 def TTS_continuous(session, text, label):
     # used say_animated so that the robot also performs movement while speaking 
-    if label == "NEU":
-        yield session.call("rie.dialogue.say_animated", text=text)
-    else: 
-        yield session.call("rie.dialogue.say", text=text)
+    #if label == "NEU":
+    #    yield session.call("rie.dialogue.say_animated", text=text)
+    #else: 
+    yield session.call("rie.dialogue.say", text=text)
 
 
                   
@@ -134,48 +134,58 @@ def sentiment_analysis(sentence):
 
 def perform_movement_sentiment(session, label, score):
     if label == "POS":
-        # yes node/tilting the head up 
-         perform_movement(session, 
-                         frames = [{"time": 800, "data":{"body.head.pitch":-0.174}},
-                                   {"time": 1600, "data":{"body.head.pitch": 0.0}},
-                                   {"time": 2200, "data":{"body.head.pitch":-0.174}},
-                                   {"time": 3000, "data":{"body.head.pitch":0.0}}],
-                            force = True)
-         # arms up for excitement/hooray
-         perform_movement(session, 
-                         frames = [{"time": 1200, "data":{"body.arms.right.upper.pitch":-2.59, "body.arms.left.upper.pitch":-2.59}},
-                                   {"time": 2400, "data":{"body.arms.right.upper.pitch":0.0, "body.arms.left.upper.pitch":0.0}},
-                                   ],
-                            force = True)
-         # backward chest bent -> this needs to be changed and customised for backward 
-         perform_movement(session, 
-                         frames = [{"time": 800, "data":{"body.legs.right.lower.pitch":0.0}},
-                                   {"time": 1600, "data":{"body.legs.right.lower.pitch":1.5}},
-                                   {"time": 8000, "data":{"body.legs.right.lower.pitch":0.0}}],
-                            force = True)
+        # arms up for excitement/hooray 
+        if score >= 0.95:
+            perform_movement(session, 
+                            frames = [{"time": 1200, "data":{"body.arms.right.upper.pitch":-2.59, "body.arms.left.upper.pitch":-2.59}},
+                                    {"time": 2400, "data":{"body.arms.right.upper.pitch":0.0, "body.arms.left.upper.pitch":0.0}},
+                                    ],
+                                force = True)
+            
+        # yes node/tilting the head up
+        else:
+           perform_movement(session, 
+                            frames = [{"time": 800, "data":{"body.head.pitch":-0.174}},
+                                    {"time": 1600, "data":{"body.head.pitch": 0.0}},
+                                    {"time": 2200, "data":{"body.head.pitch":-0.174}},
+                                    {"time": 3000, "data":{"body.head.pitch":0.0}}],
+                                force = True)
+        # backward chest bent -> this needs to be changed and customised for backward 
+        # if score < 0.9:
+        #     perform_movement(session, 
+        #                  frames = [{"time": 800, "data":{"body.legs.right.lower.pitch":0.0}},
+        #                            {"time": 1600, "data":{"body.legs.right.lower.pitch":1.5}},
+        #                            {"time": 8000, "data":{"body.legs.right.lower.pitch":0.0}}],
+        #                     force = True)
        
     elif label == "NEG":
-        # no node/tilting the head down
-        perform_movement(session, 
+        # arms straight 
+        if score >= 0.95:
+            perform_movement(session, 
+                         frames = [{"time": 700, "data":{"body.arms.right.lower.roll":0, "body.arms.left.lower.roll":0}},
+                                   {"time": 1400, "data":{"body.arms.right.lower.roll": 6.50e-04, "body.arms.left.lower.roll": 6.50e-04}},
+                                   {"time": 2100, "data":{"body.arms.right.lower.roll": -1.74, "body.arms.left.lower.roll": -1.74}},
+                                   {"time": 5000, "data":{"body.arms.right.lower.roll":-1.74, "body.arms.left.lower.roll":-1.74}}, 
+                                   {"time": 5700, "data":{"body.arms.right.lower.roll":-1, "body.arms.left.lower.roll":-1}}
+                                   ],
+                            force = True)
+        # no node/tilting the head down  
+        else:
+            perform_movement(session, 
                          frames = [{"time": 800, "data":{"body.head.pitch":0.0}},
                                    {"time": 1600, "data":{"body.head.pitch": 0.174}},
                                    {"time": 2200, "data":{"body.head.pitch":0.0}},
                                    {"time": 3000, "data":{"body.head.pitch":0.174}},
                                    {"time": 3800, "data":{"body.head.pitch":0.0}}],
                             force = True)
-        # arms straight 
-        perform_movement(session, 
-                         frames = [{"time": 1200, "data":{"body.arms.right.lower.roll":0, "body.arms.left.lower.roll":0}},
-                                   {"time": 2400, "data":{"body.arms.right.lower.roll": 6.50e-04, "body.arms.left.lower.roll": 6.50e-04 }},
-                                   ],
-                            force = True)
         
         # foward chest bent  -> this needs to be changed 
-        perform_movement(session, 
-                         frames = [{"time": 800, "data":{"body.legs.right.lower.pitch":0.0}},
-                                   {"time": 1600, "data":{"body.legs.right.lower.pitch":1.5}},
-                                   {"time": 8000, "data":{"body.legs.right.lower.pitch":0.0}}],
-                            force = True)
+        # if score < 0.9:
+            # perform_movement(session, 
+            #              frames = [{"time": 800, "data":{"body.legs.right.lower.pitch":0.0}},
+            #                        {"time": 1600, "data":{"body.legs.right.lower.pitch":1.5}},
+            #                        {"time": 8000, "data":{"body.legs.right.lower.pitch":0.0}}],
+            #                 force = True)
         
 
         
@@ -188,12 +198,12 @@ def perform_movement_sentiment(session, label, score):
 def main(session, details):
 
     yield session.call("rom.optional.behavior.play", name = "BlocklyStand")
+    yield session.call("rie.vision.face.find")
     yield session.call("rom.optional.behavior.play", name = "BlocklyWaveRightArm")
-    perform_movement(session, #forward
-                         frames = [{"time": 800, "data":{"body.legs.right.lower.pitch":0.0}},
-                                   {"time": 3000, "data":{"body.legs.right.lower.pitch":0.1}},
-                                   {"time": 8000, "data":{"body.legs.right.lower.pitch":0.0}}],
-                            force = True)
+    #yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward") # walking forward for introductory purpose
+    #yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward")
+    #session.call("rie.vision.face.track")
+ 
     
     
 
@@ -201,14 +211,14 @@ def main(session, details):
     # second line: finding the face and tracking it (line4) 
     # yield session.call("rom.optional.behavior.play", name = "BlocklyStand")
     # # use this twice, we no longer need the walking part 
-    # yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward")
-    # yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward")
     # yield session.call("rie.vision.face.find")
     # sitting down for therapy 
     # yield session.call("rom.optional.behavior.play", name = "BlocklySitDown") 
     # yield session.call("rom.optional.behavior.play", name = "BlocklyWaveRightArm")
     # # calling the TTS function for initiating the conversation, by passing the initial response 
     # session.call("rie.vision.face.track")
+
+
     label = None
     yield TTS_continuous(session, inital_response, label)
     # calling the STT function for recognizing and processing the words from the user 
@@ -224,7 +234,7 @@ wamp = Component(
         "url": "ws://wamp.robotsindeklas.nl",
         "serializers": ["msgpack"]
     }],
-    realm="rie.68342dee1f2d588ceb27c2c1",
+    realm="rie.68396c0c1f2d588ceb27db06",
 )
 wamp.on_join(main)
 
