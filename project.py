@@ -2,10 +2,13 @@ from autobahn.twisted.component import Component, run
 from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.util import sleep
 from alpha_mini_rug import perform_movement
-from alpha_mini_rug.speech_to_text import SpeechToText
+from speech_to_text import SpeechToText
 from transformers import pipeline 
 from google import genai
 from google.genai import types
+import time 
+import re 
+from speech_recognition import AudioData
 
 
 import cv2 as cv
@@ -75,7 +78,7 @@ def TTS_continuous(session, text, label):
 def STT_continuous(session):
     info = yield session.call("rom.sensor.hearing.info")
     print(info)
-
+    
     # hearing sensitivity increased for elderly's voice adaptation
     yield session.call("rom.sensor.hearing.sensitivity", 2000) 
     yield session.call("rie.dialogue.config.language", lang="en")
@@ -85,6 +88,8 @@ def STT_continuous(session):
     yield session.call("rom.sensor.hearing.stream")
 
     sentence = " "
+    start_time = None 
+    stop_time = None
  
     while True:
         if not audio_processor.new_words:
@@ -93,9 +98,10 @@ def STT_continuous(session):
             print("I am recording")
             
         else:
+            print(audio_processor.audio_time - audio_processor.silence_time)
             # resets new_words = False
             word_array = audio_processor.give_me_words()  
-            # turning the microphone off while speaking so that it doe not start a conversation with itself 
+            # turning the microphone off while speaking so that it does not start a conversation with itself 
             audio_processor.do_speech = False
             print("I am processing the words")
             # prints last 3 sentences
@@ -121,6 +127,7 @@ def STT_continuous(session):
             label = None
             # turning the microphone on
             audio_processor.do_speech = True
+            
 
         audio_processor.loop()
 
