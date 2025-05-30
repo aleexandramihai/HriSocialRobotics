@@ -65,12 +65,14 @@ inital_response = generate_response(client, model, new_prompt, CONFIG)
 
 # the implementation of TTS and STT are taken from the Manual Advanced Programming provided 
 @inlineCallbacks
-def TTS_continuous(session, text, label):
-    # used say_animated so that the robot also performs movement while speaking 
-    #if label == "NEU":
-    #    yield session.call("rie.dialogue.say_animated", text=text)
-    #else: 
+def TTS_continuous(session, text, label): 
+    start_time = time.time()
     yield session.call("rie.dialogue.say", text=text)
+    end_time = time.time() 
+    duration = end_time - start_time 
+    speaking_pace_robot = duration/len(text.split())
+    print(duration)
+    print(speaking_pace_robot)
 
 
                   
@@ -105,14 +107,12 @@ def STT_continuous(session):
             audio_processor.do_speech = False
             print("I am processing the words")
             # prints last 3 sentences
-            print(word_array[-3:]) 
+            print(word_array[-3:])
             sentence = word_array[-1][0]
             print(sentence)
-            # words = sentence.split()
-            # for word in words: 
-            #    label, score = sentiment_analysis(word)
-            #    label_scores[word] = [label, score]
-            # print(label_scores)
+            words = sentence.split()
+            period = (audio_processor.audio_time - audio_processor.silence_time)/len(words)
+            print(period)
             label, score = sentiment_analysis(sentence)
             print(label, score)
             perform_movement_sentiment(session, label, score)
@@ -122,8 +122,12 @@ def STT_continuous(session):
             # sometimes the LLM returns responses that contain "*"
             # we replace them with a space such that the robot will not spell them out loud
             response_text = response_text.replace("*", " ")
+            response_split = response_text.split()
+            print(f"response split: {response_split}")
+            for a in response_split:
+                TTS_continuous(session, a, label)
             # calling the TTS function so that the robot can reply to the user with the generated response
-            yield TTS_continuous(session, response_text, label)
+            #yield TTS_continuous(session, response_text, label)
             label = None
             # turning the microphone on
             audio_processor.do_speech = True
@@ -205,8 +209,8 @@ def perform_movement_sentiment(session, label, score):
 def main(session, details):
 
     yield session.call("rom.optional.behavior.play", name = "BlocklyStand")
-    yield session.call("rie.vision.face.find")
-    yield session.call("rom.optional.behavior.play", name = "BlocklyWaveRightArm")
+    #yield session.call("rie.vision.face.find")
+    #yield session.call("rom.optional.behavior.play", name = "BlocklyWaveRightArm")
     #yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward") # walking forward for introductory purpose
     #yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward")
     #session.call("rie.vision.face.track")
@@ -227,9 +231,12 @@ def main(session, details):
 
 
     label = None
-    yield TTS_continuous(session, inital_response, label)
+    regular_sentence = "I am looking for the baseball cap."
+    yield TTS_continuous(session, regular_sentence, label)
+    trial_sentence = "I am looking for the baseball cap."
+    yield TTS_continuous(session, trial_sentence, label)
     # calling the STT function for recognizing and processing the words from the user 
-    yield STT_continuous(session)
+    #yield STT_continuous(session)
 
     
 
