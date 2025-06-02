@@ -10,12 +10,19 @@ import time
 import re 
 from speech_recognition import AudioData
 
-
+import pyttsx3
 import cv2 as cv
 import numpy as np
 import wave
 import os
 import time
+
+engine = pyttsx3.init()
+engine.setProperty('rate', 125)  # default is ~200
+file_path = "output.wav"
+engine.save_to_file("Hello, how are you today?", file_path)
+engine.runAndWait()
+audio = file_path
 
 audio_processor = SpeechToText()
 # increased silence time for elderly use
@@ -248,7 +255,7 @@ wamp = Component(
         "url": "ws://wamp.robotsindeklas.nl",
         "serializers": ["msgpack"]
     }],
-    realm="rie.68396c0c1f2d588ceb27db06",
+    realm="rie.683d8cd89827d41c07336460",
 )
 wamp.on_join(main)
 
