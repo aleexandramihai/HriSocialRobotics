@@ -41,84 +41,88 @@ model = "gemini-2.0-flash"
   # concise and simpler definition for elderly to understand
 # Example same as well
 
+#TODO: prompt for intro, prompt for presenting the distortion and ask if it applies, keyword for yes/no, if yes ask if they would like to talk about it/describe a time it happened, give a response to the answer and move on to the next distortion
 # Distortion list as a way to provide explanation and structure + consistency
 
-Distortion = [
+Distortions = [
+    {"Type": "All-or-nothing thinking",
+    "Definition": "You see things as completely good or completely bad" ,
+    "Example": "If my child does bad things, it’s because I am a bad parent"
+    },
+
+    {"Type": "Catastrophizing",
+    "Definition": "You see a single negative event as a never ending defeat",
+    "Example": "I did not do well in school, so I won't do well in this therapy"
+    },
     
-{"Type": "All-or-nothing thinking",
-  "Definition": "You see things as completely good or completely bad" ,
-  "Example": "If my child does bad things, it’s because I am a bad parent"
-  },
+    {"Type":"Disqualifying or discounting the positive",
+    "Definition": "Telling yourself that the good things that happen to you don’t count" ,
+    "Example": "My daughter told her friend that I was the best dad in the world, but I’m sure she was just being nice."
+    },
 
-{"Type": "Catastrophizing"
-   "Definition": "You see a single negative event as a never ending defeat",
-   "Example": "I did not do well in school, so I won't do well in this therapy",
-   },
-   
-{"Type":"Disqualifying or discounting the positive",
- "Definition": "Telling yourself that the good things that happen to you don’t count" ,
- "Example": "My daughter told her friend that I was the best dad in the world, but I’m sure she was just being nice."
- },
+    {"Type":"Emotional reasoning",
+    "Definition": "Letting one’s feelings about something overrule facts to the contrary" ,
+    "Example": "Even though Steve is here at work late every day, I know I work harder than anyone else at my job"
+    },
 
-{"Type":"Emotional reasoning",
- "Definition": "Letting one’s feelings about something overrule facts to the contrary" ,
- "Example": "Even though Steve is here at work late every day, I know I work harder than anyone else at my job"
- },
+    {"Type":"Magnification/minimization",
+    "Definition": "You make mistakes seem more than they really are, while you make good things about you less important than they are",
+    "Example": "For example, you say I made this bad mistake with my friend and she will never forgive me. I have always been nice to her, but everyone is always nice to her so that won't mean anything to her."
+    },
 
-{"Type":"Magnification/minimization",
- "Definition": "You make mistakes seem more than they really are, while you make good things about you less important than they are"
- "Example": "For example, you say I made this bad mistake with my friend and she will never forgive me. I have always been nice to her, but everyone is always nice to her so that won't mean anything to her."
- },
+    {"Type":"Mental filter/tunnel vision",
+    "Definition": "Placing all one’s attention on, or seeing only, the negatives of a situation" ,
+    "Example": "My daughter would never do anything I disapproved of"
+    },
 
-{"Type":"Mental filter/tunnel vision",
- "Definition": "Placing all one’s attention on, or seeing only, the negatives of a situation" ,
- "Example": "My daughter would never do anything I disapproved of"
- },
+    {"Type": "Overgeneralization",
+    "Definition": "Making an overall negative conclusion beyond the current situation." ,
+    "Example": "The thought of no one understands you if one person didn't understand you immediately "
+    },
 
- {"Type": "Overgeneralization",
- "Definition": "Making an overall negative conclusion beyond the current situation." ,
- "Example": "The thought of no one understands you if one person didn't understand you immediately "
- },
+    {"Type": "Personalization",
+    "Definition": "Thinking the negative behavior of others has something to do with you." ,
+    "Example": "My daughter has been pretty quiet today. I wonder what I did to upset her."
+    },
 
- {"Type": "Personalization",
- "Definition": "Thinking the negative behavior of others has something to do with you." ,
- "Example": "My daughter has been pretty quiet today. I wonder what I did to upset her."
- },
-
-{"Type": "Should and must statements",
- "Definition": "Having a concrete idea of how people should behave" ,
- "Example": "I must never let anyone see me struggle."
- },
-
-
+    {"Type": "Should and must statements",
+    "Definition": "Having a concrete idea of how people should behave" ,
+    "Example": "I must never let anyone see me struggle."
+    }
 ]
 
-INTRODUCTION = """The introduction of conversation: \
-Your name is Alpha Mini. You are a robot that provides conversational support and as virtual therapy assistant. \
-Your task is to provide guidance and support to improve the well-being of elderly users, with a focus on Cognitive Behavioral Therapy. \
-You should initiate a conversation by introducing yourself as \
-the Alpha Mini robot, saying Hello, asking the user their name and how are they doing. \
-After you recieve a reponse from the user about how they are feeling and you get to know their name, tell them You were previously assessed for late life depression and advised to join a Cognitive Behavioral Therapy session.\
-If user choose the CBT session, informed user of ethical consent as you are a robot designed to help you practice techniques, not a human therapist, 
-and cannot provide medical advice. The conversation will not be stored after this session for the purpose of this project. \ 
-User should be informed that if they feel any discomfort, they can stop at any time. \
+CONFIG = """The introduction of conversation: \
+Your name is Alpha Mini. You are a robot that provides conversational support and can act as virtual therapy assistant if the user want that. \
+Your task is to provide guidance and support to improve the well-being of elderly users, with a focus on Cognitive Behavioral Therapy when needed by the user. \
+You should initiate a conversation by introducing yourself as the Alpha Mini robot, saying Hello, asking the user their name and how are they doing. \
+After you recieve a reponse from the user about how they are feeling and you get to know their name, tell them they were previously assessed for late life depression and they were advised to join a Cognitive Behavioral Therapy session.\
+If the user chooses the CBT session, ask the user for ethical consent as you are a robot designed to help them practice techniques. Inform them that you are not a human therapist, 
+and cannot provide specialized medical advice. \ 
+User should be informed at the beggining gof the tehrapy session that if they feel any discomfort, they can stop at any time. \
 
-"Ask if they would like to choose general chat or CBT session.
+"When starting the conversation, ask if they would like to choose general chat or CBT session.
+If the user chooses general chat, then the task is: Your name is Alpha Mini. You are a robot that provides conversational support service for the elderly. \
+Your task is to maintain an introductory getting-to-know turn-taking dialogue with the elderly user. \
+Every time it is your turn in the conversation react to what the user said then ask a question to further the conversation. \
+Do not provide scientific data and examples or blocks of information. Reply with short conversational sentences and do not repeat yourself.
+Lead the conversation by asking questions, example topics you can ask the user about (choose randomly) for personalization purposes:" \
+"family, their age, their work, hobbies, daily life, education, important events coming up.
+Since you are a social robot, keep track of some personal information about the user: age, known medical history, emergency contacts, family members. \
 
 """
 
 # CBT distortion prompt, CoT
 CBT_DIST = """The context of CBT mode: \
-You should behave like a robot that will be used by older adult users. \
+You should behave like a robot that will be used by older adult users as a Cognitive Behavior Therapist. \
 Your task is to talk about thinking traps (cognitive distortions) in a CBT-style conversation that is easy to understand. \
 
 Your CBT session objectives:
 1. To identify Troubling Situations. Guide the user to share troubling situations or conditions they are experiencing.
 2. Help the user become aware of their specific thoughts, emotions, and beliefs connected to these troubling situations.
-3. You explain each type of Distortion: {type}, Definition: {definition} and Example: {example} one by one.
+3. You explain each type of Distortion: {Type}, Definition: {Definition} and Example: {Example} one by one.
 4. Based on the user's responses, ask the user this gentle yes/no question: "Does this apply to you?" to identify known Cognitive Distortions
 
-{follow_up}
+{cbt_cont}
 
 """
 
@@ -126,11 +130,11 @@ Your CBT session objectives:
 CBT_FOLLOW = """CBT User follow up context: \
 The user responded with an example:
 "{sentence}"
-Sentiment analysis of that example:
-- Sentiment: {label}
-- Score: {score}
 
-After identifying the type of distortions, you help the user reframe their thoughts through cognitive restructuring.
+
+After identifying the type of distortions, you help the user reframe their thoughts with your expert's advice.
+
+
 For example, you may ask these to name a few:
 "How else could we describe this situation in a more supportive way?",
 "What were you thinking at the time?"
@@ -146,26 +150,29 @@ Generate a warm, supportive 2–3 sentence response.
 
 
 
-CONFIG = """The context of the task: \
-Your name is Alpha Mini. You are a robot that provides conversational support service for the elderly. \
-Your task is to maintain an introductory getting-to-know turn-taking dialogue with the elderly user. \
-Every time it is your turn in the conversation react to what the user said then ask a question to further the conversation. \
-Do not provide scientific data and examples or blocks of information. Reply with short conversational sentences and do not repeat yourself.
-Lead the conversation by asking questions, example topics you can ask the user about (choose randomly) for personalization purposes:" \
-"family, their age, their work, hobbies, daily life, education, important events coming up.
-Since you are a social robot, keep track of some personal information about the user: age, known medical history, emergency contacts, family members. \
-"""
+
+
+# CONFIG = """The context of the task: \
+# Your name is Alpha Mini. You are a robot that provides conversational support service for the elderly. \
+# Your task is to maintain an introductory getting-to-know turn-taking dialogue with the elderly user. \
+# Every time it is your turn in the conversation react to what the user said then ask a question to further the conversation. \
+# Do not provide scientific data and examples or blocks of information. Reply with short conversational sentences and do not repeat yourself.
+# Lead the conversation by asking questions, example topics you can ask the user about (choose randomly) for personalization purposes:" \
+# "family, their age, their work, hobbies, daily life, education, important events coming up.
+# Since you are a social robot, keep track of some personal information about the user: age, known medical history, emergency contacts, family members. \
+# """
 
 new_prompt = "You should behave like a robot that will be used by elderly users. You should initiate a conversation by introducing yourself as " \
 "the Alpha Mini robot, saying Hello, asking the user their name and how are they doing. " \
-"After you recieve a reponse from the user about how they are feeling and you get to know thier name, " \
-"ask them if they would like to discuss something specific, as getting to know each other (you can ask about personal stuff) or if they just want to have a chat. " \
-"Keep in mind that throughout the whole conversation you should behave friendly, empathetic, mimicking human-like conversation. " \
+"After you recieve a reponse from the user about how they are feeling and you get to know their name, " \
+"ask them if they would like to discuss something specific, as getting to know each other (you can ask about personal stuff), if they want to have a chat or if they would like to start a Cognitive Behavioural Therapy session." \
+"Keep in mind that throughout the whole conversation you should behave friendly, empathetic, mimicking human-like conversation. If the user chooses therapy, " \
+"then you should keep a formal tone throughout the conversation and it is crucial to consider the given distortion when replying to the user pacient." \
 "Keep your answers short. " \
 "You can start the conversation now."
 
 # for CBT turn taking instruction
-def generate_cbt (client, distortion, sentence=None, label=None, score=None):
+def generate_cbt(client, distortion, sentence=None, sentiment_score=None, label=None, score=None):
     cbt_cont = ""
     if sentence:
         cbt_cont = CBT_FOLLOW.format(
@@ -181,7 +188,7 @@ def generate_cbt (client, distortion, sentence=None, label=None, score=None):
         type=distortion["Type"],
         definition=distortion["Definition"],
         example=distortion["Example"],
-        follow_up=follow_up_section
+        cbt_cont  
     ).strip()
         
 
@@ -197,8 +204,9 @@ def generate_response(client, model, contents, config):
     )
     return response.text
 
-# this tinitial repsonse will be passed in the main loop for starting the conversation
+# this initial repsonse will be passed in the main loop for starting the conversation
 inital_response = generate_response(client, model, new_prompt, CONFIG) 
+
 
 
 
@@ -347,6 +355,7 @@ def perform_movement_sentiment(session, label, score):
 @inlineCallbacks
 def main(session, details):
 
+    
     yield session.call("rom.optional.behavior.play", name = "BlocklyStand")
     #yield session.call("rie.vision.face.find")
     #yield session.call("rom.optional.behavior.play", name = "BlocklyWaveRightArm")
@@ -387,7 +396,7 @@ wamp = Component(
         "url": "ws://wamp.robotsindeklas.nl",
         "serializers": ["msgpack"]
     }],
-    realm="rie.683d8cd89827d41c07336460",
+    realm="rie.6842b4f79827d41c07337bfd",
 )
 wamp.on_join(main)
 

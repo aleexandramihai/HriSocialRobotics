@@ -17,6 +17,7 @@ import wave
 import os
 import time
 import audioop
+from pydub import AudioSegment
 
 
 @inlineCallbacks
@@ -29,6 +30,9 @@ def main(session, details):
     engine.save_to_file(text, file_path)
     engine.say(text)
     engine.runAndWait()
+    audio = AudioSegment.from_wav(file_path)
+    audio.export("output.mp3", format="mp3")
+
 
     with wave.open(file_path, 'rb') as wav_file:
         sample_rate = wav_file.getframerate()          # Should be 44100 Hz
@@ -36,12 +40,16 @@ def main(session, details):
         raw_data = wav_file.readframes(wav_file.getnframes())
     print(f"sample rate: {sample_rate}, num_channels: {num_channels}")
     if num_channels == 1:
-        raw_data = audioop.tostereo(raw_data, 2, 1, 1)
+        raw_data = audioop.tostereo(raw_data, 2, 1, 1) #this does not change it to stereo successfully
 
-    audio = file_path
-    yield session.call("rom.actuator.audio.volume", volume = 50)
-    yield session.call("rom.actuator.audio.play", data = audio, sync = True)
+    #audio = raw_data
+    #yield session.call("rom.actuator.audio.volume", volume = 50)
+    print(f"num_channels: {num_channels}, should be 2 now")
+    #yield session.call("rom.actuator.audio.play", data = "output.wav", rate = 1600)
+    yield session.call("rom.actuator.audio.stream", url = "https://drive.google.com/file/d/1qS7KW5z9rAWCZhdaPT1Lj6NgXxwjPeqj/view?usp=drive_link", sync = False)
+    #https://drive.google.com/file/d/1qS7KW5z9rAWCZhdaPT1Lj6NgXxwjPeqj/view?usp=drive_link
     yield sleep(30)
+    print("code ran all the way")
     session.leave()
 
 wamp = Component(
@@ -49,7 +57,7 @@ wamp = Component(
         "url": "ws://wamp.robotsindeklas.nl",
         "serializers": ["msgpack"]
     }],
-    realm="rie.683d8cd89827d41c07336460",
+    realm="rie.683ef4b69827d41c07336acb",
 )
 wamp.on_join(main)
 

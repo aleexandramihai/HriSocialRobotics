@@ -17,12 +17,8 @@ import wave
 import os
 import time
 
+# the following speech engine is from https://pypi.org/project/pyttsx3/
 engine = pyttsx3.init()
-engine.setProperty('rate', 125)  # default is ~200
-file_path = "output.wav"
-engine.save_to_file("Hello, how are you today?", file_path)
-engine.runAndWait()
-audio = file_path
 
 audio_processor = SpeechToText()
 # increased silence time for elderly use
@@ -66,7 +62,7 @@ def generate_response(client, model, contents, config):
     return response.text
 
 # this tinitial repsonse will be passed in the main loop for starting the conversation
-inital_response = generate_response(client, model, new_prompt, CONFIG) 
+initial_response = generate_response(client, model, new_prompt, CONFIG) 
 
 
 
@@ -97,8 +93,6 @@ def STT_continuous(session):
     yield session.call("rom.sensor.hearing.stream")
 
     sentence = " "
-    start_time = None 
-    stop_time = None
  
     while True:
         if not audio_processor.new_words:
@@ -168,14 +162,7 @@ def perform_movement_sentiment(session, label, score):
                                     {"time": 2200, "data":{"body.head.pitch":-0.174}},
                                     {"time": 3000, "data":{"body.head.pitch":0.0}}],
                                 force = True)
-        # backward chest bent -> this needs to be changed and customised for backward 
-        # if score < 0.9:
-        #     perform_movement(session, 
-        #                  frames = [{"time": 800, "data":{"body.legs.right.lower.pitch":0.0}},
-        #                            {"time": 1600, "data":{"body.legs.right.lower.pitch":1.5}},
-        #                            {"time": 8000, "data":{"body.legs.right.lower.pitch":0.0}}],
-        #                     force = True)
-       
+           
     elif label == "NEG":
         # arms straight 
         if score >= 0.95:
@@ -197,51 +184,40 @@ def perform_movement_sentiment(session, label, score):
                                    {"time": 3800, "data":{"body.head.pitch":0.0}}],
                             force = True)
         
-        # foward chest bent  -> this needs to be changed 
-        # if score < 0.9:
-            # perform_movement(session, 
-            #              frames = [{"time": 800, "data":{"body.legs.right.lower.pitch":0.0}},
-            #                        {"time": 1600, "data":{"body.legs.right.lower.pitch":1.5}},
-            #                        {"time": 8000, "data":{"body.legs.right.lower.pitch":0.0}}],
-            #                 force = True)
-        
-
-        
-        
-
-
 
     
 @inlineCallbacks
 def main(session, details):
 
     yield session.call("rom.optional.behavior.play", name = "BlocklyStand")
-    #yield session.call("rie.vision.face.find")
-    #yield session.call("rom.optional.behavior.play", name = "BlocklyWaveRightArm")
-    #yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward") # walking forward for introductory purpose
-    #yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward")
-    #session.call("rie.vision.face.track")
+    yield session.call("rie.vision.face.find")
+    yield session.call("rom.optional.behavior.play", name = "BlocklyWaveRightArm")
+    # walking forward for introductory purpose
+    yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward") 
+    yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward")
+    session.call("rie.vision.face.track")
  
-    
-    
 
-    # first three lines added for movement: standing and waiving at the beginning of the dialogue
-    # second line: finding the face and tracking it (line4) 
-    # yield session.call("rom.optional.behavior.play", name = "BlocklyStand")
-    # # use this twice, we no longer need the walking part 
-    # yield session.call("rie.vision.face.find")
-    # sitting down for therapy 
+    # sitting down for CBT 
     # yield session.call("rom.optional.behavior.play", name = "BlocklySitDown") 
     # yield session.call("rom.optional.behavior.play", name = "BlocklyWaveRightArm")
-    # # calling the TTS function for initiating the conversation, by passing the initial response 
-    # session.call("rie.vision.face.track")
 
+    # # calling the TTS function for initiating the conversation, by passing the initial response 
+    yield TTS_continuous(session, initial_response)
+    # session.call("rie.vision.face.track")
+    
+    engine.setProperty('rate', 125)  # default is ~200
+    file_path = "output.wav"
+    engine.save_to_file("Hello, how are you today?", file_path)
+    engine.runAndWait()
+    audio = file_path
+    yield session.call("rom.actuator.audio.play", data = audio)
 
     label = None
-    regular_sentence = "I am looking for the baseball cap."
-    yield TTS_continuous(session, regular_sentence, label)
-    trial_sentence = "I am looking for the baseball cap."
-    yield TTS_continuous(session, trial_sentence, label)
+    #regular_sentence = "I am looking for the baseball cap."
+    #yield TTS_continuous(session, regular_sentence, label)
+    #trial_sentence = "I am looking for the baseball cap."
+    #yield TTS_continuous(session, trial_sentence, label)
     # calling the STT function for recognizing and processing the words from the user 
     #yield STT_continuous(session)
 
