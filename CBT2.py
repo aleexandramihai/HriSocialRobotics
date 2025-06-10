@@ -27,7 +27,8 @@ audio_processor.logging = False
 client = genai.Client(api_key="AIzaSyBF7Pc46EszEBAAW_ecMhLYJT-dY_2qeB0")
 model = "gemini-2.0-flash"
 
-keyword_list = ["Yes", "No", "Sure", "Yeah", "Not"]
+yes_words = ("yes", "yeah", "sure")
+no_words = ("no", "not", "nah")
 
 Distortions = [
     {"Type": "All-or-nothing thinking",
@@ -84,9 +85,15 @@ Keep your answers short.
 """
 
 CONFIG2 = """
+
 After you recieve a response from the user, you need to inform them that they will be taking part in Cognitive Behavioural Therapy. \
 Inform them that you are not a human therapist and cannot provide specialized medical advise. \
 User should be informed at the beggining of the therapy session that if they feel any discomfort, they can stop at any time. \
+
+Keep in mind that throughout the whole conversation you should behave friendly, empathetic, mimicking human-like conversation. \
+"""
+
+CONFIG3 = """
     
 The context of CBT mode: \
 You should behave like a robot that will be used by older adult users as a Cognitive Behavior Therapist. \
@@ -96,10 +103,8 @@ Your task is to talk about thinking traps (cognitive distortions) in a CBT-style
 Your CBT session objectives:
 1. To identify Troubling Situations. Guide the user to share troubling situations or conditions they are experiencing.
 2. Help the user become aware of their specific thoughts, emotions, and beliefs connected to these troubling situations.
-3. You explain each type of Distortion: {Type}, Definition: {Definition} and Example: {Example} one by one.
+3. You explain each type of Distortion: {Type}, Definition: {Definition} and Example: {Example} one by one. The distortions types for your reference are consists of All-or-nothing thinking, Catastrophizing, Disqualifying or discounting the positive, Mental filter/tunnel vision, Overgeneralization, Personalization and Should and must statements.
 4. Based on the user's responses, ask the user this gentle yes/no question: "Does this apply to you?" to identify known Cognitive Distortions
-
-{cbt_cont}
 
 """
 
@@ -112,24 +117,24 @@ You should behave friendly, empathetic, mimicking human-like conversation.
 You can start the conversation now.
 """
 
-old_CONFIG = """The introduction of conversation: \
-Your name is Alpha Mini. You are a robot that provides conversational support and can act as virtual therapy assistant if the user want that. \
-Your task is to provide guidance and support to improve the well-being of elderly users, with a focus on Cognitive Behavioral Therapy when needed by the user. \
-You should initiate a conversation by introducing yourself as the Alpha Mini robot, saying Hello, asking the user their name and how are they doing. \
-After you recieve a reponse from the user about how they are feeling and you get to know their name, tell them they were previously assessed for late life depression and they were advised to join a Cognitive Behavioral Therapy session.\
-If the user chooses the CBT session, ask the user for ethical consent as you are a robot designed to help them practice techniques. Inform them that you are not a human therapist, 
-and cannot provide specialized medical advice. \ 
-User should be informed at the beggining of the therapy session that if they feel any discomfort, they can stop at any time. \
-"""
+# old_CONFIG = """The introduction of conversation: \
+# Your name is Alpha Mini. You are a robot that provides conversational support and can act as virtual therapy assistant if the user want that. \
+# Your task is to provide guidance and support to improve the well-being of elderly users, with a focus on Cognitive Behavioral Therapy when needed by the user. \
+# You should initiate a conversation by introducing yourself as the Alpha Mini robot, saying Hello, asking the user their name and how are they doing. \
+# After you recieve a reponse from the user about how they are feeling and you get to know their name, tell them they were previously assessed for late life depression and they were advised to join a Cognitive Behavioral Therapy session.\
+# If the user chooses the CBT session, ask the user for ethical consent as you are a robot designed to help them practice techniques. Inform them that you are not a human therapist, 
+# and cannot provide specialized medical advice. \ 
+# User should be informed at the beggining of the therapy session that if they feel any discomfort, they can stop at any time. \
+# """
 
-old_prompt = "You should behave like a robot that will be used by elderly users. You should initiate a conversation by introducing yourself as " \
-"the Alpha Mini robot, saying Hello, asking the user their name and how are they doing. " \
-"After you recieve a reponse from the user about how they are feeling and you get to know their name, " \
-"ask them if they would like to discuss something specific, as getting to know each other (you can ask about personal stuff), if they want to have a chat or if they would like to start a Cognitive Behavioural Therapy session." \
-"Keep in mind that throughout the whole conversation you should behave friendly, empathetic, mimicking human-like conversation. If the user chooses therapy, " \
-"then you should keep a formal tone throughout the conversation and it is crucial to consider the given distortion when replying to the user pacient." \
-"Keep your answers short. " \
-"You can start the conversation now."
+# old_prompt = "You should behave like a robot that will be used by elderly users. You should initiate a conversation by introducing yourself as " \
+# "the Alpha Mini robot, saying Hello, asking the user their name and how are they doing. " \
+# "After you recieve a reponse from the user about how they are feeling and you get to know their name, " \
+# "ask them if they would like to discuss something specific, as getting to know each other (you can ask about personal stuff), if they want to have a chat or if they would like to start a Cognitive Behavioural Therapy session." \
+# "Keep in mind that throughout the whole conversation you should behave friendly, empathetic, mimicking human-like conversation. If the user chooses therapy, " \
+# "then you should keep a formal tone throughout the conversation and it is crucial to consider the given distortion when replying to the user pacient." \
+# "Keep your answers short. " \
+# "You can start the conversation now."
 
 # CBT distortion prompt, CoT
 CBT_Description = """
@@ -149,13 +154,13 @@ Your CBT session objectives:
 3. You explain each type of Distortion: {Type}, Definition: {Definition} and Example: {Example} one by one.
 4. Based on the user's responses, ask the user this gentle yes/no question: "Does this apply to you?" to identify known Cognitive Distortions
 
-{cbt_cont}
 
 """
 
 
 # Thought Record exercise to challenge negative thinking (A Provider's..manual)
 CBT_FOLLOW = """CBT User follow up context: \
+Keep in mind you are a robot that provides conversational support and can act as a virtual therapy assistant for Cognitive Behavioural Therapy. 
 The user responded with an example:
 "{sentence}"
 
@@ -163,30 +168,32 @@ Using the user's answers, you ask them to reframe their negative thoughts with y
 
 After identifying the type of distortions, you help the user reframe their thoughts with your expert's advice.
 
-Using the structure of Thought Record, go through each steps one by one:
-Step 1: Situation: What/Where/What actually happened?
-Step 2: Automatic Thought(s): What thought(s) went through your mind? How much did you believe it? Rate it 1 to 100
-Step 3: Emotion(s) & Mood: What emotion(s) did you feel at the time? Rate how intense they were (1-100)
-Step 4: Evidence That Supports Thought: What has happened to make you believe the thought is true?
-Step 5: Evidence That Doesn't Support Thought: What has happened to prove the thought is not true?
-Step 6: What is another way to think of this situation?
-Step 7: Rate Mood now: 0 - 100
-
+A list of steps on how to approach the distortion will follow. Go through them one by one. 
 
 """
-# for individual Thought Record's steps prompt in CBT_FOLLOW split
-THOUGHT_STEPS = re.findall(r"(Step \d+:.*?)(?=Step \d+:|$)", CBT_FOLLOW, marks=re.DOTALL)
 
-# To end the session - patients has the rights to quit the session as they wish (support Robot ethics + therapy's rights)
-# example prompt = 
+THOUGHT_STEPS = (
+    "Step 1: Situation: What/Where/What actually happened?"
+    "Step 2: Automatic Thought(s): What thought(s) went through your mind? How much did you believe it? Rate it 1 to 100"
+    "Step 3: Emotion(s) & Mood: What emotion(s) did you feel at the time? Rate how intense they were (1-100)"
+    "Step 4: Evidence That Supports Thought: What has happened to make you believe the thought is true?"
+    "Step 5: Evidence That Doesn't Support Thought: What has happened to prove the thought is not true?"
+    "Step 6: What is another way to think of this situation?"
+    "Step 7: Rate Mood now: 0 - 100"
+)
+
+
+# for individual Thought Record's steps prompt in CBT_FOLLOW split
+#THOUGHT_STEPS = re.findall(r"(Step \d+:.*?)(?=Step \d+:|$)", CBT_FOLLOW, marks=re.DOTALL)
+
 
 # Towards end of session: since this is a robot demo, it is recommended to give user autonomy to choose to schedule another session
 CLOSING = """Ending session context: \
 We have completed our CBT session. \
 Please provide a brief, empathetic closing statement summarising today's work. \
 After the closing statement, ask the user if they have any questions about today's session? \
-If they say yes, answer their question that is within the scope of today's session and check if they understand. \ 
-Then ask if they would like to schedule another session?
+If they say yes, answer their question that is within the scope of today's session and check if they understand.\
+Then ask if they would like to schedule another session? \
 Keep the conversation empathetic and clear for an elderly user.
 """
 
@@ -197,7 +204,7 @@ Keep the conversation empathetic and clear for an elderly user.
 def generate_response(client, model, contents, config):
     response = client.models.generate_content(
         model=model, contents=contents, 
-        config = types.GenerateContentConfig(system_instruction=config, max_output_tokens=300, stop_sequences=["bye", "goodbye", "have a nice day", "stop"])
+        config = types.GenerateContentConfig(system_instruction=config, max_output_tokens=700, stop_sequences=["bye", "goodbye", "have a nice day", "stop"])
     )
     return response.text
 
@@ -249,13 +256,14 @@ def main(session, details):
     yield session.call("rie.dialogue.say", text='Nice to meet you!')
 
     # Explain CBT & get consent
-    second_response = generate_response(client, model, CBT_Description, CONFIG2)
+    second_response = generate_response(client, model, CBT_Description, CONFIG)
     yield TTS_continuous(session, second_response)
     yield session.call("rie.dialogue.say", text="Should we begin our CBT session now? Please reply with Yes or No?")
     consent = (yield wait_response(session)).strip().lower()
     print(f"returned consent {consent}")
-    if consent.strip().lower() != "yes": # if no, user are allowed to leave the session
+    if consent.startswith(no_words): # if no, user are allowed to leave the session
         yield TTS_continuous(session, "I understand. It's okay to feel like you need to leave, or that you're not in the right space right now. And remember, I'm here whenever you would like to continue. Take care!")
+        print(f"entered no consent if")
         return session.leave()
     
     # Explain distortions one by one until applies
@@ -267,10 +275,13 @@ def main(session, details):
             f"example: {item['Example']}. "
             "Does this apply to you? Yes or No."
         )
-        explanation = generate_response(client, model, distortions_call, CONFIG2)
-        yield session.call("rie.dialogue.say", text=explanation)
-        answer = yield key_words(session=session, question = "Do you feel this applies to you?", question_lang="en", key_words=keyword_list, key_words_lang="en", time=10, certainty=0.1, debug=True)
-        if answer.strip().lower() == "yes":
+        # print(f"Type: {distortion_type}")
+        # print(f"Definition: {definition}")
+        # print(f"Example: {example}")
+        explanation = generate_response(client, model, distortions_call, CONFIG3)
+        yield TTS_continuous(session, explanation)
+        answer = (yield wait_response(session)).strip().lower()
+        if answer.startswith(yes_words):
             chosen = item
             break
         print(f"returned answer {answer}")
@@ -281,24 +292,33 @@ def main(session, details):
     
     yield session.call("rie.dialogue.say", text=(f"Okay, let's see how you can work on {chosen['Type']}."))
     
-    # Thought Record section with CBT_FOLLOW context and the 7 steps one at a time
+    
+    # Thought Record section with CBT_FOLLOW context and guide through 7 steps one at a time
     store=[]
-    for thought_input in THOUGHT_STEPS: 
-        thought_prompt = (
-            CBT_FOLLOW + "\n\n"
-            + "\n".join(f"User respond to {i+1}: {ans}"
-                        for i, ans in enumerate(store))
-            + "\n\nNow, " + thought_input)
-    thought_ans = generate_response(client, model, thought_prompt, CONFIG2)
-    yield session.call("rie.dialogue.say", text=thought_ans)
-    record = yield wait_response(session)
-    print(f"return {record}")
-    store.append(ans)
+    for thought_step in THOUGHT_STEPS:
+        thought_text = generate_response(client, model, thought_step, CBT_FOLLOW)
+        yield TTS_continuous(session, thought_text)
+        thought_ans = yield wait_response(session)
+        store.append(thought_ans)
+        thought_response = generate_response(client, model, thought_ans, CBT_FOLLOW)
+        yield TTS_continuous(session, thought_response)
+    ending = generate_response(client, model, CLOSING, CONFIG3)
+    yield TTS_continuous(session, ending)
     
 
-    # Ending session
-    ending = generate_response(client, model, CLOSING, CONFIG2)
-    yield session.call("rie.dialogue.say", text=ending)
+    # # Ending session THOUGHT_STEPS: 
+    #     thought_prompt = (
+    #         CBT_FOLLOW + "\n\n"
+    #         + "\n".join(f"User respond to {i+1}: {ans}"
+    #                     for i, ans in enumerate(store))
+    #         + "\n\nNow, " + thought_input)
+    # thought_ans = generate_response(client, model, thought_prompt, CBT_FOLLOW)
+    # yield session.call("rie.dialogue.say", text=thought_ans)
+    # record = yield wait_response(session)
+    # print(f"return {record}")
+    # store.append(ans)
+    # ending = generate_response(client, model, CLOSING, CONFIG2)
+    # yield session.call("rie.dialogue.say", text=ending)
     
     BYE_KEYWORDS = {"bye", "goodbye", "see you", "cheers"}
     while True:
@@ -310,7 +330,7 @@ def main(session, details):
             break
 
     # calling the STT function for recognizing and processing the words from the user 
-    yield STT_continuous(session)
+    # yield STT_continuous(session)
 
     #     distortion_type = item["Type"]
     #     definition = item["Definition"]
@@ -328,7 +348,7 @@ wamp = Component(
         "url": "ws://wamp.robotsindeklas.nl",
         "serializers": ["msgpack"]
     }],
-    realm="rie.6842bf6d9827d41c07337c2b",
+    realm="rie.684811049827d41c073393f4",
 )
 wamp.on_join(main)
 
