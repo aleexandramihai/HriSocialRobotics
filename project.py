@@ -68,14 +68,9 @@ initial_response = generate_response(client, model, new_prompt, CONFIG)
 
 # the implementation of TTS and STT are taken from the Manual Advanced Programming provided 
 @inlineCallbacks
-def TTS_continuous(session, text, label): 
-    start_time = time.time()
+def TTS_continuous(session, text): 
     yield session.call("rie.dialogue.say", text=text)
-    end_time = time.time() 
-    duration = end_time - start_time 
-    speaking_pace_robot = duration/len(text.split())
-    print(duration)
-    print(speaking_pace_robot)
+ 
 
 
                   
@@ -122,11 +117,11 @@ def STT_continuous(session):
             print(response_text)
             # sometimes the LLM returns responses that contain "*"
             # we replace them with a space such that the robot will not spell them out loud
-            response_text = response_text.replace("*", " ")
-            response_split = response_text.split()
-            print(f"response split: {response_split}")
-            for a in response_split:
-                TTS_continuous(session, a, label)
+            # response_text = response_text.replace("*", " ")
+            # response_split = response_text.split()
+            # print(f"response split: {response_split}")
+            # for a in response_split:
+            #     TTS_continuous(session, a)
             # calling the TTS function so that the robot can reply to the user with the generated response
             #yield TTS_continuous(session, response_text, label)
             label = None
@@ -185,7 +180,7 @@ def perform_movement_sentiment(session, label, score):
                             force = True)
         
 
-    
+
 @inlineCallbacks
 def main(session, details):
 
@@ -204,22 +199,22 @@ def main(session, details):
 
     # # calling the TTS function for initiating the conversation, by passing the initial response 
     yield TTS_continuous(session, initial_response)
+    yield STT_continuous(session)
     # session.call("rie.vision.face.track")
     
-    engine.setProperty('rate', 125)  # default is ~200
-    file_path = "output.wav"
-    engine.save_to_file("Hello, how are you today?", file_path)
-    engine.runAndWait()
-    audio = file_path
-    yield session.call("rom.actuator.audio.play", data = audio)
+    # engine.setProperty('rate', 125)  # default is ~200
+    # file_path = "output.wav"
+    # engine.save_to_file("Hello, how are you today?", file_path)
+    # engine.runAndWait()
+    # audio = file_path
+    # yield session.call("rom.actuator.audio.play", data = audio)
 
-    label = None
     #regular_sentence = "I am looking for the baseball cap."
     #yield TTS_continuous(session, regular_sentence, label)
     #trial_sentence = "I am looking for the baseball cap."
     #yield TTS_continuous(session, trial_sentence, label)
     # calling the STT function for recognizing and processing the words from the user 
-    #yield STT_continuous(session)
+    
 
     
 
@@ -231,7 +226,7 @@ wamp = Component(
         "url": "ws://wamp.robotsindeklas.nl",
         "serializers": ["msgpack"]
     }],
-    realm="rie.683d8cd89827d41c07336460",
+    realm="rie.68482de99827d41c07339492",
 )
 wamp.on_join(main)
 
