@@ -19,7 +19,7 @@ import time
 
 audio_processor = SpeechToText()
 # increased silence time for elderly use
-audio_processor.silence_time = 3 
+audio_processor.silence_time = 3
 audio_processor.silence_threshold2 = 100 
 audio_processor.logging = False
 
@@ -28,14 +28,19 @@ client = genai.Client(api_key="AIzaSyBF7Pc46EszEBAAW_ecMhLYJT-dY_2qeB0")
 model = "gemini-2.0-flash"
 
 yes_words = ("yes", "yeah", "sure")
-no_words = ("no", "not", "nah")
+no_words = ("no", "not", "nah", "now")
 
 Distortions = [
+    {"Type": "Personalization",
+    "Definition": "Thinking the negative behavior of others has something to do with you." ,
+    "Example": "My daughter has been pretty quiet today. I wonder what I did to upset her."
+    },
+    
     {"Type": "All-or-nothing thinking",
     "Definition": "You see things as completely good or completely bad" ,
     "Example": "If my child does bad things, it’s because I am a bad parent"
     },
-
+    
     {"Type": "Catastrophizing",
     "Definition": "You see a single negative event as a never ending defeat",
     "Example": "I did not do well in school, so I won't do well in this therapy"
@@ -64,11 +69,6 @@ Distortions = [
     {"Type": "Overgeneralization",
     "Definition": "Making an overall negative conclusion beyond the current situation." ,
     "Example": "The thought of no one understands you if one person didn't understand you immediately "
-    },
-
-    {"Type": "Personalization",
-    "Definition": "Thinking the negative behavior of others has something to do with you." ,
-    "Example": "My daughter has been pretty quiet today. I wonder what I did to upset her."
     },
 
     {"Type": "Should and must statements",
@@ -141,7 +141,7 @@ CBT_Description = """
 Continue the conversation without greeting the user again. \
 You need to inform the user that they will be taking part in Cognitive Behavioural Therapy. \
 Inform them that you are not a licensed therapist and cannot provide specialized medical advise but here as support.  
-User should be informed at the beggining of the therapy session that if they feel any discomfort, they have the right to leave the session. \
+User should be informed at that if they feel any discomfort, they have the right to leave or to not continue with the session. \
 
 The context of CBT mode: \
 Your task today is to guide user to talk about thinking traps (cognitive distortions) in a CBT-style conversation and give brief introduction on what it is about firs. \
@@ -150,17 +150,17 @@ Your task today is to guide user to talk about thinking traps (cognitive distort
 Your CBT session objectives:
 1. To identify Troubling Situations. Guide the user to share troubling situations or conditions they are experiencing.
 2. Help the user become aware of their specific thoughts, emotions, and beliefs connected to these troubling situations.
-3. You explain each type of Distortion: {Type}, Definition: {Definition} and Example: {Example} one by one.
-4. Based on the user's responses, ask the user this gentle yes/no question: "Does this apply to you?" to identify known Cognitive Distortions
+3. You explain each type of Distortion one by one.
 
-Don't focus on providing long-winded answers, but keep it relevant.
+Do not provide blocks of information. Reply with short conversational sentences and do not repeat yourself.
 
 """
 
 distortion_config = """
-Help the user understand the context of cognitive distortions better.
-To do this you present and explain the distortion based on the provided type definition and example.
-After the explanation you ask the user if it applies to them.
+Help the user understand the context of cognitive distortions better. \
+To do this you present and explain in a concise manner the distortion based on the provided type definition and example. \
+After the explanation, you ask the user if it applies to them and wait for their response. \
+You respond in a very brief, conversational, approachable style. \
 """
 
 
@@ -170,19 +170,23 @@ Keep in mind you are a robot that provides conversational support and can act as
 After identifying the type of distortions, you help the user reframe their thoughts with your expert's advice.
 
 Inform the user A seven-column Thought Record can be used to challenge unhelpful thoughts and beliefs and they will try that right now.
-A list of steps on how to approach the distortion will follow. You will be provided with one step at a time, please present the following step. 
+A list of steps on how to approach the distortion will follow. You will kindly present one step at a time. The user has to answer the question presented at each step.
 
 """
 
-THOUGHT_STEPS = (
-    "Step 1: Situation: What/Where/What actually happened?"
-    "Step 2: Automatic Thought(s): What thought(s) went through your mind? How much did you believe it? Rate it 1 to 100"
-    "Step 3: Emotion(s) & Mood: What emotion(s) did you feel at the time? Rate how intense they were (1-100)"
-    "Step 4: Evidence That Supports Thought: What has happened to make you believe the thought is true?"
-    "Step 5: Evidence That Doesn't Support Thought: What has happened to prove the thought is not true?"
-    "Step 6: What is another way to think of this situation?"
+THOUGHT_CONFIG = """
+The user is presented with a seven-column Thought Record to help challenge unhelpful thoughts. You are presenting the question for one of the steps now:
+"""
+
+THOUGHT_STEPS = [
+    "Step 1: Situation: What/Where/What actually happened?",
+    "Step 2: Automatic Thought(s): What thought(s) went through your mind? How much did you believe it? Rate it 1 to 100",
+    "Step 3: Emotion(s) & Mood: What emotion(s) did you feel at the time? Rate how intense they were (1-100)",
+    "Step 4: Evidence That Supports Thought: What has happened to make you believe the thought is true?",
+    "Step 5: Evidence That Doesn't Support Thought: What has happened to prove the thought is not true?",
+    "Step 6: What is another way to think of this situation?",
     "Step 7: Rate Mood now: 0 - 100"
-)
+]
 
 
 # for individual Thought Record's steps prompt in CBT_FOLLOW split
@@ -211,13 +215,13 @@ def generate_response(client, model, contents, config):
     return response.text
 
 @inlineCallbacks
-# only one instance of the STT (STT not continuous)
 def wait_response(session):
     yield session.call("rom.sensor.hearing.sensitivity", 2000) 
     yield session.call("rie.dialogue.config.language", lang="en")
     print("listening to audio")
     yield session.subscribe(audio_processor.listen_continues, "rom.sensor.hearing.stream")
     yield session.call("rom.sensor.hearing.stream")
+    sentence = " "
     while True:
         if not audio_processor.new_words:
             # to prevent server from crashing
@@ -229,7 +233,11 @@ def wait_response(session):
             print(word_array[-3:]) 
             sentence = word_array[-1][0]
             print(sentence)
+            label, score = sentiment_analysis(sentence)
+            print(label, score)
+            yield perform_movement_sentiment(session, label, score)
             return sentence
+        
         audio_processor.loop()
 
 
@@ -237,6 +245,59 @@ def wait_response(session):
 @inlineCallbacks
 def TTS_continuous(session, text):
     yield session.call("rie.dialogue.say", text=text)
+
+def sentiment_analysis(sentence):
+    sentiment_pipeline = pipeline("sentiment-analysis", model="finiteautomata/bertweet-base-sentiment-analysis", framework="pt")
+    sentiment = sentiment_pipeline(sentence)
+    label = sentiment[0]['label']
+    score = sentiment[0]['score']
+    return label, score 
+
+
+def perform_movement_sentiment(session, label, score):
+    if label == "POS":
+        # arms up for excitement/hooray 
+        if score >= 0.95:
+            perform_movement(session, 
+                            frames = [{"time": 1200, "data":{"body.arms.right.upper.pitch":-2.59, "body.arms.left.upper.pitch":-2.59}},
+                                    {"time": 2400, "data":{"body.arms.right.upper.pitch":0.0, "body.arms.left.upper.pitch":0.0}},
+                                    ],
+                                force = True)
+            
+        # yes node/tilting the head up
+        else:
+           perform_movement(session, 
+                            frames = [{"time": 800, "data":{"body.head.pitch":-0.174}},
+                                    {"time": 1600, "data":{"body.head.pitch": 0.0}},
+                                    {"time": 2200, "data":{"body.head.pitch":-0.174}},
+                                    {"time": 3000, "data":{"body.head.pitch":0.0}}],
+                                force = True)
+           
+    elif label == "NEG":
+        # arms straight 
+        if score >= 0.95:
+            perform_movement(session, 
+                         frames = [{"time": 700, "data":{"body.arms.right.lower.roll":0, "body.arms.left.lower.roll":0}},
+                                   {"time": 1400, "data":{"body.arms.right.lower.roll": 6.50e-04, "body.arms.left.lower.roll": 6.50e-04}},
+                                   {"time": 2100, "data":{"body.arms.right.lower.roll": -1.74, "body.arms.left.lower.roll": -1.74}},
+                                   {"time": 5000, "data":{"body.arms.right.lower.roll":-1.74, "body.arms.left.lower.roll":-1.74}}, 
+                                   {"time": 5700, "data":{"body.arms.right.lower.roll":-1, "body.arms.left.lower.roll":-1}}
+                                   ],
+                            force = True)
+        # no node/tilting the head down  
+        else:
+            perform_movement(session, 
+                         frames = [{"time": 800, "data":{"body.head.pitch":0.0}},
+                                   {"time": 1600, "data":{"body.head.pitch": 0.174}},
+                                   {"time": 2200, "data":{"body.head.pitch":0.0}},
+                                   {"time": 3000, "data":{"body.head.pitch":0.174}},
+                                   {"time": 3800, "data":{"body.head.pitch":0.0}}],
+                            force = True)
+        
+    else:
+        return
+        
+
 
 @inlineCallbacks
 def main(session, details):
@@ -251,6 +312,10 @@ def main(session, details):
 
     # Introduction 
     print("start of main")
+    yield session.call("rom.optional.behavior.play", name = "BlocklyStand")
+    yield session.call("rom.optional.behavior.play", name = "BlocklyWaveRightArm")
+    yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward") 
+    yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward")
     initial_response = generate_response(client, model, first_prompt, CONFIG)
     yield TTS_continuous(session, initial_response)
     sentence = yield wait_response(session)
@@ -258,7 +323,7 @@ def main(session, details):
     yield session.call("rie.dialogue.say", text='It is Nice to meet you!')
 
     # Explain CBT & get consent
-    second_response = generate_response(client, model, CBT_Description)
+    second_response = generate_response(client, model, CBT_Description, config = None)
     yield TTS_continuous(session, second_response)
     yield session.call("rie.dialogue.say", text="Should we begin our CBT session now? Please reply with Yes or No?")
     consent = (yield wait_response(session)).strip().lower()
@@ -275,13 +340,15 @@ def main(session, details):
             f"This distortion_type: {item['Type']}. "
             f"This distortion is defined as: {item['Definition']}. "
             f"Here is an example: {item['Example']}. "
-            "Does this apply to you? Yes or No."
+            "Does this apply to you?"
+            
         )
         # print(f"Type: {distortion_type}")
         # print(f"Definition: {definition}")
         # print(f"Example: {example}")
         explanation = generate_response(client, model, distortions_call, distortion_config)
-        yield TTS_continuous(session, explanation + "Please start your answer with a yes or no.")
+        # explanation = explanation.replace("*", " ")
+        yield TTS_continuous(session, explanation + "Please respond with a yes or no.")
         answer = (yield wait_response(session)).strip().lower()
         if answer.startswith(yes_words):
             chosen = item
@@ -297,14 +364,15 @@ def main(session, details):
     
     # Thought Record section with CBT_FOLLOW context and guide through 7 steps one at a time
     store=[]
+    thought_text = generate_response(client, model, CBT_FOLLOW, config= None)
+    yield TTS_continuous(session, thought_text)
     for thought_step in THOUGHT_STEPS:
-        thought_text = generate_response(client, model, thought_step, CBT_FOLLOW)
+        print(thought_step)
+        thought_text = generate_response(client, model, THOUGHT_CONFIG + thought_step, config= None)
         yield TTS_continuous(session, thought_text)
         thought_ans = yield wait_response(session)
         store.append(thought_ans)
-        thought_response = generate_response(client, model, thought_ans)
-        yield TTS_continuous(session, thought_response)
-    ending = generate_response(client, model, CLOSING)
+    ending = generate_response(client, model, CLOSING, config = None)
     yield TTS_continuous(session, ending)
     
 
@@ -350,7 +418,7 @@ wamp = Component(
         "url": "ws://wamp.robotsindeklas.nl",
         "serializers": ["msgpack"]
     }],
-    realm="rie.684811049827d41c073393f4",
+    realm="rie.68482de99827d41c07339492",
 )
 wamp.on_join(main)
 
