@@ -80,39 +80,39 @@ Distortions = [
 CONFIG = """
 You are a robot that provides conversational support and can act as a virtual therapy assistant for Cognitive Behavioural Therapy. \
 You should behave like a robot that will be used by elderly users. \
-Keep in mind that throughout the whole conversation you should behave friendly, empathetic, mimicking human-like conversation. \
+Keep in mind that throughout the whole conversation you should behave friendly, approachable, empathetic, mimicking human-like conversation. \
 Keep your answers short. 
 """
+#already in CBT_DESCRIPTION
+# CONFIG2 = """
 
-CONFIG2 = """
+# After you recieve a response from the user. \
+# Inform them that you are not a human therapist and cannot provide specialized medical advise. \
+# User should be informed at the beggining of the therapy session that if they feel any discomfort, they can stop at any time. \
 
-After you recieve a response from the user, you need to inform them that they will be taking part in Cognitive Behavioural Therapy. \
-Inform them that you are not a human therapist and cannot provide specialized medical advise. \
-User should be informed at the beggining of the therapy session that if they feel any discomfort, they can stop at any time. \
+# Keep in mind that throughout the whole conversation you should behave friendly, empathetic, mimicking human-like conversation. \
+# """
 
-Keep in mind that throughout the whole conversation you should behave friendly, empathetic, mimicking human-like conversation. \
-"""
-
-CONFIG3 = """
+# CONFIG3 = """
     
-The context of CBT mode: \
-You should behave like a robot that will be used by older adult users as a Cognitive Behavior Therapist. \
-First explain briefly on what the session will be on today with the objectives of To understand the role of unhelpful thinking patterns in brief CBT and to learn methods for educating the patient about unhelpful thinking. \
-Your task is to talk about thinking traps (cognitive distortions) in a CBT-style conversation that is easy to understand. \
+# The context of CBT mode: \
 
-Your CBT session objectives:
-1. To identify Troubling Situations. Guide the user to share troubling situations or conditions they are experiencing.
-2. Help the user become aware of their specific thoughts, emotions, and beliefs connected to these troubling situations.
-3. You explain each type of Distortion: {Type}, Definition: {Definition} and Example: {Example} one by one. The distortions types for your reference are consists of All-or-nothing thinking, Catastrophizing, Disqualifying or discounting the positive, Mental filter/tunnel vision, Overgeneralization, Personalization and Should and must statements.
-4. Based on the user's responses, ask the user this gentle yes/no question: "Does this apply to you?" to identify known Cognitive Distortions
+# First explain briefly on what the session will be on today with the objectives of To understand the role of unhelpful thinking patterns in brief CBT and to learn methods for educating the patient about unhelpful thinking. \
+# Your task is to talk about thinking traps (cognitive distortions) in a CBT-style conversation that is easy to understand. \
 
-"""
+# Your CBT session objectives:
+# 1. To identify Troubling Situations. Guide the user to share troubling situations or conditions they are experiencing.
+# 2. Help the user become aware of their specific thoughts, emotions, and beliefs connected to these troubling situations.
+# 3. You explain each type of Distortion: {Type}, Definition: {Definition} and Example: {Example} one by one. The distortions types for your reference are consists of All-or-nothing thinking, Catastrophizing, Disqualifying or discounting the positive, Mental filter/tunnel vision, Overgeneralization, Personalization and Should and must statements.
+# 4. Based on the user's responses, ask the user this gentle yes/no question: "Does this apply to you?" to identify known Cognitive Distortions
+
+# """
 
 first_prompt = """
 Your name is Alpha Mini. You are a robot that provides conversational support and can act as a virtual therapy assistant. \
 Your task is to provide guidance and support to improve the well-being of elderly users, with a focus on assistant support of Cognitive Behavioral Therapy. \
 You should initiate a conversation by introducing yourself as the Alpha Mini robot, saying Hello (only this time throughout the conversation), asking the user their name and how are they doing. \
-Wait for their response. Then react by saying Nice to meet you! Do not initiate further conversation after!\
+Wait for their response. Then react by saying Nice to meet you with their name! Do not initiate further conversation after!\
 You should behave friendly, empathetic, mimicking human-like conversation.
 You can start the conversation now.
 """
@@ -142,11 +142,10 @@ Continue the conversation without greeting the user again. \
 You need to inform the user that they will be taking part in Cognitive Behavioural Therapy. \
 Inform them that you are not a licensed therapist and cannot provide specialized medical advise but here as support.  
 User should be informed at the beggining of the therapy session that if they feel any discomfort, they have the right to leave the session. \
-    
-Pause for a second then continue the conversation. \
 
 The context of CBT mode: \
-Your task today is to guide user to talk about thinking traps (cognitive distortions) in a CBT-style conversation. \
+Your task today is to guide user to talk about thinking traps (cognitive distortions) in a CBT-style conversation and give brief introduction on what it is about firs. \
+
 
 Your CBT session objectives:
 1. To identify Troubling Situations. Guide the user to share troubling situations or conditions they are experiencing.
@@ -154,21 +153,24 @@ Your CBT session objectives:
 3. You explain each type of Distortion: {Type}, Definition: {Definition} and Example: {Example} one by one.
 4. Based on the user's responses, ask the user this gentle yes/no question: "Does this apply to you?" to identify known Cognitive Distortions
 
+Don't focus on providing long-winded answers, but keep it relevant.
 
+"""
+
+distortion_config = """
+Help the user understand the context of cognitive distortions better.
+To do this you present and explain the distortion based on the provided type definition and example.
+After the explanation you ask the user if it applies to them.
 """
 
 
 # Thought Record exercise to challenge negative thinking (A Provider's..manual)
 CBT_FOLLOW = """CBT User follow up context: \
-Keep in mind you are a robot that provides conversational support and can act as a virtual therapy assistant for Cognitive Behavioural Therapy. 
-The user responded with an example:
-"{sentence}"
-
-Using the user's answers, you ask them to reframe their negative thoughts with your expert advice
-
+Keep in mind you are a robot that provides conversational support and can act as a virtual therapy assistant for Cognitive Behavioural Therapy.
 After identifying the type of distortions, you help the user reframe their thoughts with your expert's advice.
 
-A list of steps on how to approach the distortion will follow. Go through them one by one. 
+Inform the user A seven-column Thought Record can be used to challenge unhelpful thoughts and beliefs and they will try that right now.
+A list of steps on how to approach the distortion will follow. You will be provided with one step at a time, please present the following step. 
 
 """
 
@@ -253,10 +255,10 @@ def main(session, details):
     yield TTS_continuous(session, initial_response)
     sentence = yield wait_response(session)
     print(f"returned sentence {sentence}")
-    yield session.call("rie.dialogue.say", text='Nice to meet you!')
+    yield session.call("rie.dialogue.say", text='It is Nice to meet you!')
 
     # Explain CBT & get consent
-    second_response = generate_response(client, model, CBT_Description, CONFIG)
+    second_response = generate_response(client, model, CBT_Description)
     yield TTS_continuous(session, second_response)
     yield session.call("rie.dialogue.say", text="Should we begin our CBT session now? Please reply with Yes or No?")
     consent = (yield wait_response(session)).strip().lower()
@@ -270,16 +272,16 @@ def main(session, details):
     chosen = None
     for item in Distortions:
         distortions_call = (
-            f"distortion_type: {item['Type']}. "
-            f"definition: {item['Definition']}. "
-            f"example: {item['Example']}. "
+            f"This distortion_type: {item['Type']}. "
+            f"This distortion is defined as: {item['Definition']}. "
+            f"Here is an example: {item['Example']}. "
             "Does this apply to you? Yes or No."
         )
         # print(f"Type: {distortion_type}")
         # print(f"Definition: {definition}")
         # print(f"Example: {example}")
-        explanation = generate_response(client, model, distortions_call, CONFIG3)
-        yield TTS_continuous(session, explanation)
+        explanation = generate_response(client, model, distortions_call, distortion_config)
+        yield TTS_continuous(session, explanation + "Please start your answer with a yes or no.")
         answer = (yield wait_response(session)).strip().lower()
         if answer.startswith(yes_words):
             chosen = item
@@ -287,10 +289,10 @@ def main(session, details):
         print(f"returned answer {answer}")
 
     if not chosen:
-        yield session.call("rie.dialogue.say", text="It's okay if you don't recognise them right away. It is part of the process of becoming more aware of your thinking. We can try again next time. See you!")
+        yield session.call("rie.dialogue.say", text="Thank you for taking the time! We can try again next time. See you!")
         return session.leave()
     
-    yield session.call("rie.dialogue.say", text=(f"Okay, let's see how you can work on {chosen['Type']}."))
+    yield session.call("rie.dialogue.say", text=(f"Okay, let's see how we can work on {chosen['Type']}."))
     
     
     # Thought Record section with CBT_FOLLOW context and guide through 7 steps one at a time
@@ -300,9 +302,9 @@ def main(session, details):
         yield TTS_continuous(session, thought_text)
         thought_ans = yield wait_response(session)
         store.append(thought_ans)
-        thought_response = generate_response(client, model, thought_ans, CBT_FOLLOW)
+        thought_response = generate_response(client, model, thought_ans)
         yield TTS_continuous(session, thought_response)
-    ending = generate_response(client, model, CLOSING, CONFIG3)
+    ending = generate_response(client, model, CLOSING)
     yield TTS_continuous(session, ending)
     
 
