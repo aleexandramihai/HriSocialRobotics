@@ -10,6 +10,7 @@ import time
 import re 
 from speech_recognition import AudioData
 
+import speech_recognition as sr
 import pyttsx3
 import cv2 as cv
 import numpy as np
@@ -19,9 +20,11 @@ import time
 
 audio_processor = SpeechToText()
 # increased silence time for elderly use
-audio_processor.silence_time = 3
+audio_processor.silence_time = 1
 audio_processor.silence_threshold2 = 100 
 audio_processor.logging = False
+
+r = sr.Recognizer()
 
 # generated a key using https://aistudio.google.com/app/u/1/apikey and used gemini 2 as the model for the LLM part
 client = genai.Client(api_key="AIzaSyBF7Pc46EszEBAAW_ecMhLYJT-dY_2qeB0")
@@ -31,11 +34,6 @@ yes_words = ("yes", "yeah", "sure")
 no_words = ("no", "not", "nah", "now")
 
 Distortions = [
-    {"Type": "Personalization",
-    "Definition": "Thinking the negative behavior of others has something to do with you." ,
-    "Example": "My daughter has been pretty quiet today. I wonder what I did to upset her."
-    },
-    
     {"Type": "All-or-nothing thinking",
     "Definition": "You see things as completely good or completely bad" ,
     "Example": "If my child does bad things, it’s because I am a bad parent"
@@ -74,6 +72,11 @@ Distortions = [
     {"Type": "Should and must statements",
     "Definition": "Having a concrete idea of how people should behave" ,
     "Example": "I must never let anyone see me struggle."
+    }, 
+
+    {"Type": "Personalization",
+    "Definition": "Thinking the negative behavior of others has something to do with you." ,
+    "Example": "My daughter has been pretty quiet today. I wonder what I did to upset her."
     }
 ]
 
@@ -141,7 +144,7 @@ CBT_Description = """
 Continue the conversation without greeting the user again. \
 You need to inform the user that they will be taking part in Cognitive Behavioural Therapy. \
 Inform them that you are not a licensed therapist and cannot provide specialized medical advise but here as support.  
-User should be informed at that if they feel any discomfort, they have the right to leave or to not continue with the session. \
+User should be informed at that if they feel any discomfort, they have the right to "leave or to not continue with the session". \
 
 The context of CBT mode: \
 Your task today is to guide user to talk about thinking traps (cognitive distortions) in a CBT-style conversation and give brief introduction on what it is about firs. \
@@ -180,8 +183,8 @@ The user is presented with a seven-column Thought Record to help challenge unhel
 
 THOUGHT_STEPS = [
     "Step 1: Situation: What/Where/What actually happened?",
-    "Step 2: Automatic Thought(s): What thought(s) went through your mind? How much did you believe it? Rate it 1 to 100",
-    "Step 3: Emotion(s) & Mood: What emotion(s) did you feel at the time? Rate how intense they were (1-100)",
+    "Step 2: Automatic Thoughts: What thoughts went through your mind? How much did you believe it? Rate it 1 to 100",
+    "Step 3: Emotions & Mood: What emotions did you feel at the time? Rate how intense they were (1-100)",
     "Step 4: Evidence That Supports Thought: What has happened to make you believe the thought is true?",
     "Step 5: Evidence That Doesn't Support Thought: What has happened to prove the thought is not true?",
     "Step 6: What is another way to think of this situation?",
@@ -205,8 +208,6 @@ Keep the conversation empathetic and clear for an elderly user.
 
 
 
-
-
 def generate_response(client, model, contents, config):
     response = client.models.generate_content(
         model=model, contents=contents, 
@@ -216,7 +217,7 @@ def generate_response(client, model, contents, config):
 
 @inlineCallbacks
 def wait_response(session):
-    yield session.call("rom.sensor.hearing.sensitivity", 2000) 
+    yield session.call("rom.sensor.hearing.sensitivity", 1650)
     yield session.call("rie.dialogue.config.language", lang="en")
     print("listening to audio")
     yield session.subscribe(audio_processor.listen_continues, "rom.sensor.hearing.stream")
@@ -229,6 +230,7 @@ def wait_response(session):
             print("I am waiting for response")  
         else:    
             word_array = audio_processor.give_me_words()
+            audio_processor.words = []
             print("I am processing the words")
             print(word_array[-3:]) 
             sentence = word_array[-1][0]
@@ -241,9 +243,41 @@ def wait_response(session):
         audio_processor.loop()
 
 
+def input_response(session):
+    while(True):
+        try: 
+            with sr.Microphone() as source2:
+                
+                # wait for a second to let the recognizer
+                # adjust the energy threshold based on
+                # the surrounding noise level 
+                r.adjust_for_ambient_noise(source2, duration=0.2)
+                print("I am listening")
+
+                #listens for the user's input 
+                audio2 = r.listen(source2)
+
+                # Using google to recognize audio
+                user_response = r.recognize_google(audio2)
+                user_response = user_response.strip().lower()
+                print("This is user response:", user_response)
+                label, score = sentiment_analysis(user_response)
+                print(label, score)
+                yield perform_movement_sentiment(session, label, score)
+                return user_response
+
+        
+        except sr.RequestError as e:
+            print("Could not request results;", e)
+            
+        except sr.UnknownValueError:
+            print("Unknown error occurred")
+        
+
 
 @inlineCallbacks
 def TTS_continuous(session, text):
+    text = text.replace("*", " ")
     yield session.call("rie.dialogue.say", text=text)
 
 def sentiment_analysis(sentence):
@@ -295,20 +329,13 @@ def perform_movement_sentiment(session, label, score):
                             force = True)
         
     else:
-        return
+        yield session.call("rom.optional.behavior.play", name = "BlocklyStand")
+        
         
 
 
 @inlineCallbacks
 def main(session, details):
-
-    # yield session.call("rom.optional.behavior.play", name = "BlocklyStand")
-    # yield session.call("rie.vision.face.find")
-    # yield session.call("rom.optional.behavior.play", name = "BlocklyWaveRightArm")
-    # # walking forward for introductory purpose
-    # yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward") 
-    # yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward")
-    # session.call("rie.vision.face.track")
 
     # Introduction 
     print("start of main")
@@ -318,15 +345,16 @@ def main(session, details):
     yield session.call("rom.optional.behavior.play", name = "BlocklyMoveForward")
     initial_response = generate_response(client, model, first_prompt, CONFIG)
     yield TTS_continuous(session, initial_response)
-    sentence = yield wait_response(session)
+    #sentence = yield wait_response(session)
+    sentence = yield input_response(session)
     print(f"returned sentence {sentence}")
     yield session.call("rie.dialogue.say", text='It is Nice to meet you!')
 
     # Explain CBT & get consent
-    second_response = generate_response(client, model, CBT_Description, config = None)
+    second_response = generate_response(client, model, CBT_Description, config = " ")
     yield TTS_continuous(session, second_response)
     yield session.call("rie.dialogue.say", text="Should we begin our CBT session now? Please reply with Yes or No?")
-    consent = (yield wait_response(session)).strip().lower()
+    consent = (yield input_response(session))
     print(f"returned consent {consent}")
     if consent.startswith(no_words): # if no, user are allowed to leave the session
         yield TTS_continuous(session, "I understand. It's okay to feel like you need to leave, or that you're not in the right space right now. And remember, I'm here whenever you would like to continue. Take care!")
@@ -349,7 +377,7 @@ def main(session, details):
         explanation = generate_response(client, model, distortions_call, distortion_config)
         # explanation = explanation.replace("*", " ")
         yield TTS_continuous(session, explanation + "Please respond with a yes or no.")
-        answer = (yield wait_response(session)).strip().lower()
+        answer = (yield input_response(session))
         if answer.startswith(yes_words):
             chosen = item
             break
@@ -364,51 +392,26 @@ def main(session, details):
     
     # Thought Record section with CBT_FOLLOW context and guide through 7 steps one at a time
     store=[]
-    thought_text = generate_response(client, model, CBT_FOLLOW, config= None)
+    thought_text = generate_response(client, model, CBT_FOLLOW, config = " ")
     yield TTS_continuous(session, thought_text)
     for thought_step in THOUGHT_STEPS:
         print(thought_step)
-        thought_text = generate_response(client, model, THOUGHT_CONFIG + thought_step, config= None)
+        thought_text = generate_response(client, model, THOUGHT_CONFIG + thought_step, config= " ")
         yield TTS_continuous(session, thought_text)
-        thought_ans = yield wait_response(session)
-        store.append(thought_ans)
-    ending = generate_response(client, model, CLOSING, config = None)
+        thought_response = yield input_response(session)
+        store.append(thought_response)
+    ending = generate_response(client, model, CLOSING, config = " ")
     yield TTS_continuous(session, ending)
     
-
-    # # Ending session THOUGHT_STEPS: 
-    #     thought_prompt = (
-    #         CBT_FOLLOW + "\n\n"
-    #         + "\n".join(f"User respond to {i+1}: {ans}"
-    #                     for i, ans in enumerate(store))
-    #         + "\n\nNow, " + thought_input)
-    # thought_ans = generate_response(client, model, thought_prompt, CBT_FOLLOW)
-    # yield session.call("rie.dialogue.say", text=thought_ans)
-    # record = yield wait_response(session)
-    # print(f"return {record}")
-    # store.append(ans)
-    # ending = generate_response(client, model, CLOSING, CONFIG2)
-    # yield session.call("rie.dialogue.say", text=ending)
     
     BYE_KEYWORDS = {"bye", "goodbye", "see you", "cheers"}
     while True:
-        last_response = yield wait_response(session)
+        last_response = yield input_response(session)
         print(f"returned sentence {last_response}")
         if any(bye in last_response for bye in BYE_KEYWORDS):
-            yield perform_movement(session, "wave")
             yield session.call("rie.dialogue.say", text="See you next time!")
+            yield session.call("rom.optional.behavior.play", name = "BlocklyWaveRightArm")
             break
-
-    # calling the STT function for recognizing and processing the words from the user 
-    # yield STT_continuous(session)
-
-    #     distortion_type = item["Type"]
-    #     definition = item["Definition"]
-    #     example = item["Example"]
-
-    #yield session.call("rie.dialogue.say", text="Answer with Yes or No")
-    #answer = yield key_words(session=session, question = "Do you feel this applies to you?", question_lang="en", key_words=keyword_list, key_words_lang="en", time=10, certainty=0.1, debug=True)
-    #print(answer)
 
     session.leave() 
 
@@ -418,7 +421,7 @@ wamp = Component(
         "url": "ws://wamp.robotsindeklas.nl",
         "serializers": ["msgpack"]
     }],
-    realm="rie.68482de99827d41c07339492",
+    realm="rie.684acf749827d41c0733a13f",
 )
 wamp.on_join(main)
 
