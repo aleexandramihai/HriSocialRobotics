@@ -234,15 +234,6 @@ class SpeechToText:
         recognizer = sr.Recognizer()
         # recognizer.recognize_google.recognize_legacy.confidance = 0.5
 
-        # this is for analyzing the audio that was stored locally
-        # if not self.mode_continues:
-        #     filename = f"output/output{self.word_frame-1}.wav"
-        # else:
-        #     filename = "output/output.wav"
-        # with sr.AudioFile(filename) as source:
-        #     audio_data = recognizer.record(source)
-        # todo use
-
         # audio_data= AudioData(source, self.sample_rate, 2)
         audio_data = sr.AudioData(data.tobytes(), self.sample_rate, 2)
 
